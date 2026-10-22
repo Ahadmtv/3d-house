@@ -266,13 +266,13 @@ a:focus-visible {
   transition: transform 420ms ease;
 }
 
-.journey-progress-0 { transform: scaleX(0); }
-.journey-progress-1 { transform: scaleX(0.14); }
-.journey-progress-2 { transform: scaleX(0.28); }
-.journey-progress-3 { transform: scaleX(0.43); }
-.journey-progress-4 { transform: scaleX(0.58); }
-.journey-progress-5 { transform: scaleX(0.73); }
-.journey-progress-6 { transform: scaleX(0.88); }
+.journey-progress-fill-0 { transform: scaleX(0); }
+.journey-progress-fill-1 { transform: scaleX(0.14); }
+.journey-progress-fill-2 { transform: scaleX(0.28); }
+.journey-progress-fill-3 { transform: scaleX(0.43); }
+.journey-progress-fill-4 { transform: scaleX(0.58); }
+.journey-progress-fill-5 { transform: scaleX(0.73); }
+.journey-progress-fill-6 { transform: scaleX(0.88); }
 
 .scroll-track {
   position: absolute;
@@ -298,6 +298,11 @@ a:focus-visible {
   white-space: nowrap;
 }
 
+@keyframes wall-panel-mount {
+  from { opacity: 0.45; }
+  to { opacity: 1; }
+}
+
 .wall-panel {
   position: relative;
   display: flex;
@@ -305,9 +310,10 @@ a:focus-visible {
   min-height: 390px;
   flex-direction: column;
   padding: 36px 37px 31px;
-  border: 1px solid rgba(79, 79, 61, 0.24);
-  background: rgba(244, 240, 230, 0.97);
-  box-shadow: 0 17px 52px rgba(39, 49, 41, 0.12);
+  border: 0;
+  background: rgba(244, 240, 230, 0.98);
+  box-shadow: none;
+  animation: wall-panel-mount 400ms ease-out both;
   color: #283a32;
   white-space: normal;
   pointer-events: auto;
@@ -404,7 +410,7 @@ a:focus-visible {
 }
 
 .panel-contact {
-  width: 390px;
+  width: 300px;
   min-height: 390px;
   background: #e4e8df;
 }
@@ -450,7 +456,7 @@ a:focus-visible {
   }
 
   .panel-contact {
-    width: 330px;
+    width: 300px;
   }
 }
 
