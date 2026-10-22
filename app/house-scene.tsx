@@ -6,6 +6,20 @@ import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { MutableRefObject, ReactNode } from "react";
 
+const HOUSE = {
+  width: 10,
+  depth: 14,
+  wallHeight: 5.2,
+  wallThickness: 0.24,
+  sideX: 4.88,
+  insideX: 4.76,
+  frontZ: 7,
+  backZ: -7,
+  insideFrontZ: 6.88,
+  insideBackZ: -6.88,
+  roofRidgeY: 7.85,
+};
+
 const CAMERA_STOPS = [
   { progress: 0, position: [9, 7.4, 20] as const, target: [0, 2.2, 0] as const },
   { progress: 0.09, position: [3.1, 3.9, 11.5] as const, target: [0, 2, 6.9] as const },
@@ -18,6 +32,14 @@ const CAMERA_STOPS = [
   { progress: 1, position: [0.1, 2.45, -1.6] as const, target: [3.72, 2.35, 6.75] as const },
 ];
 
+const WALL_MOUNTS = {
+  welcome: { position: [0, 2.6, HOUSE.insideBackZ + 0.04] as [number, number, number], rotation: 0 },
+  about: { position: [-HOUSE.insideX - 0.02, 2.6, -2.75] as [number, number, number], rotation: Math.PI / 2 },
+  services: { position: [HOUSE.insideX - 0.02, 2.6, -3.35] as [number, number, number], rotation: -Math.PI / 2 },
+  work: { position: [HOUSE.insideX - 0.02, 2.6, 0.65] as [number, number, number], rotation: -Math.PI / 2 },
+  contact: { position: [3.8, 2.6, HOUSE.insideFrontZ - 0.04] as [number, number, number], rotation: Math.PI },
+};
+
 type HouseSceneProps = {
   progressRef: MutableRefObject<number>;
   activeStage: number;
@@ -26,12 +48,46 @@ type HouseSceneProps = {
 function CameraJourney({ progressRef, doorRef }: Pick<HouseSceneProps, "progressRef"> & {
   doorRef: MutableRefObject<THREE.Group | null>;
 }) {
-  const startPositionRef = useRef(new THREE.Vector3());
-  const endPositionRef = useRef(new THREE.Vector3());
-  const startTargetRef = useRef(new THREE.Vector3());
-  const endTargetRef = useRef(new THREE.Vector3());
+  const desktopPath = useMemo(
+    () => new THREE.CatmullRomCurve3(
+      CAMERA_STOPS.map((stop) => new THREE.Vector3(...stop.position)),
+      false,
+      "centripetal",
+    ),
+    [],
+  );
+  const mobilePath = useMemo(
+    () => new THREE.CatmullRomCurve3(
+      CAMERA_STOPS.map((stop) => {
+        const [x, y, z] = stop.position;
+        const exteriorOffset = THREE.MathUtils.smoothstep(z, 2, 12) * 2.5;
+        return new THREE.Vector3(x * 0.45, y, z + exteriorOffset);
+      }),
+      false,
+      "centripetal",
+    ),
+    [],
+  );
+  const cameraRotations = useMemo(
+    () => CAMERA_STOPS.map((stop) => {
+      const eye = new THREE.Vector3(...stop.position);
+      const target = new THREE.Vector3(...stop.target);
+      const view = new THREE.Matrix4().lookAt(eye, target, new THREE.Vector3(0, 1, 0));
+      return new THREE.Quaternion().setFromRotationMatrix(view);
+    }),
+    [],
+  );
+  const mobileRotations = useMemo(
+    () => CAMERA_STOPS.map((stop) => {
+      const [x, y, z] = stop.position;
+      const eye = new THREE.Vector3(x * 0.45, y, z + THREE.MathUtils.smoothstep(z, 2, 12) * 2.5);
+      const target = new THREE.Vector3(...stop.target);
+      const view = new THREE.Matrix4().lookAt(eye, target, new THREE.Vector3(0, 1, 0));
+      return new THREE.Quaternion().setFromRotationMatrix(view);
+    }),
+    [],
+  );
   const cameraPositionRef = useRef(new THREE.Vector3());
-  const lookTargetRef = useRef(new THREE.Vector3());
 
   useFrame(({ camera, size }) => {
     const isNarrow = size.width < 700;
@@ -48,28 +104,21 @@ function CameraJourney({ progressRef, doorRef }: Pick<HouseSceneProps, "progress
     while (nextStop < CAMERA_STOPS.length - 1 && progress > CAMERA_STOPS[nextStop].progress) {
       nextStop += 1;
     }
-    const start = CAMERA_STOPS[nextStop - 1];
+    const segment = nextStop - 1;
+    const start = CAMERA_STOPS[segment];
     const end = CAMERA_STOPS[nextStop];
-    const range = end.progress - start.progress || 1;
-    const rawProgress = THREE.MathUtils.clamp((progress - start.progress) / range, 0, 1);
-    const easedProgress = rawProgress * rawProgress * (3 - 2 * rawProgress);
-    const cameraPosition = cameraPositionRef.current.lerpVectors(
-      startPositionRef.current.set(start.position[0], start.position[1], start.position[2]),
-      endPositionRef.current.set(end.position[0], end.position[1], end.position[2]),
-      easedProgress,
+    const localProgress = THREE.MathUtils.clamp(
+      (progress - start.progress) / (end.progress - start.progress || 1),
+      0,
+      1,
     );
-    const lookTarget = lookTargetRef.current.lerpVectors(
-      startTargetRef.current.set(start.target[0], start.target[1], start.target[2]),
-      endTargetRef.current.set(end.target[0], end.target[1], end.target[2]),
-      easedProgress,
-    );
-    if (isNarrow) {
-      cameraPosition.x *= 0.45;
-      if (cameraPosition.z > 8) cameraPosition.z += 2.5;
-    }
+    const curveProgress = (segment + localProgress) / (CAMERA_STOPS.length - 1);
+    const positionPath = isNarrow ? mobilePath : desktopPath;
+    const orientations = isNarrow ? mobileRotations : cameraRotations;
 
-    camera.position.copy(cameraPosition);
-    camera.lookAt(lookTarget);
+    positionPath.getPoint(curveProgress, cameraPositionRef.current);
+    camera.position.copy(cameraPositionRef.current);
+    camera.quaternion.slerpQuaternions(orientations[segment], orientations[nextStop], localProgress);
 
     if (doorRef.current) {
       const opening = THREE.MathUtils.clamp((progress - 0.07) / 0.1, 0, 1);
