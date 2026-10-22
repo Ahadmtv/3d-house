@@ -89,6 +89,34 @@ a:focus-visible {
   height: 100%;
 }
 
+.scene-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  max-width: 540px;
+  flex-direction: column;
+  justify-content: center;
+  padding: 12vw;
+  background: #f4f0e6;
+}
+
+.scene-fallback h2 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(38px, 7vw, 68px);
+  font-weight: 400;
+  letter-spacing: -0.05em;
+  line-height: 1;
+}
+
+.scene-fallback > p:not(.eyebrow) {
+  max-width: 420px;
+  color: #5a655c;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
 .experience-header {
   position: fixed;
   z-index: 5;

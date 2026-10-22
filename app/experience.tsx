@@ -1,7 +1,12 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
-import { HouseScene } from "./house-scene";
+
+const HouseScene = dynamic(
+  () => import("./house-scene").then((module) => module.HouseScene),
+  { ssr: false },
+);
 
 export const SCENE_STAGES = [
   { progress: 0, label: "The arrival", number: "01" },

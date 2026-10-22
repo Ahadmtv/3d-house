@@ -26,6 +26,13 @@ type HouseSceneProps = {
 function CameraJourney({ progressRef, doorRef }: Pick<HouseSceneProps, "progressRef"> & {
   doorRef: MutableRefObject<THREE.Group | null>;
 }) {
+  const startPositionRef = useRef(new THREE.Vector3());
+  const endPositionRef = useRef(new THREE.Vector3());
+  const startTargetRef = useRef(new THREE.Vector3());
+  const endTargetRef = useRef(new THREE.Vector3());
+  const cameraPositionRef = useRef(new THREE.Vector3());
+  const lookTargetRef = useRef(new THREE.Vector3());
+
   useFrame(({ camera, size }) => {
     const isNarrow = size.width < 700;
     if (camera instanceof THREE.PerspectiveCamera) {
@@ -46,12 +53,14 @@ function CameraJourney({ progressRef, doorRef }: Pick<HouseSceneProps, "progress
     const range = end.progress - start.progress || 1;
     const rawProgress = THREE.MathUtils.clamp((progress - start.progress) / range, 0, 1);
     const easedProgress = rawProgress * rawProgress * (3 - 2 * rawProgress);
-    const cameraPosition = new THREE.Vector3(...start.position).lerp(
-      new THREE.Vector3(...end.position),
+    const cameraPosition = cameraPositionRef.current.lerpVectors(
+      startPositionRef.current.set(start.position[0], start.position[1], start.position[2]),
+      endPositionRef.current.set(end.position[0], end.position[1], end.position[2]),
       easedProgress,
     );
-    const lookTarget = new THREE.Vector3(...start.target).lerp(
-      new THREE.Vector3(...end.target),
+    const lookTarget = lookTargetRef.current.lerpVectors(
+      startTargetRef.current.set(start.target[0], start.target[1], start.target[2]),
+      endTargetRef.current.set(end.target[0], end.target[1], end.target[2]),
       easedProgress,
     );
     if (isNarrow) {
@@ -363,7 +372,7 @@ function SceneContents({ progressRef, activeStage }: HouseSceneProps) {
           title={<>Made to<br />belong.</>}
         >
           <p>From quiet neighborhood landmarks to ambitious digital homes, we make the useful feel unforgettable.</p>
-          <a className="panel-link" href="#portfolio">A little more about us <span aria-hidden="true">↗</span></a>
+          <a className="panel-link" href="mailto:hello@fieldhouse.studio?subject=Selected%20work">Ask us about our work <span aria-hidden="true">↗</span></a>
         </WallPanel>
       )}
       {activeStage === 6 && (
@@ -392,6 +401,20 @@ export function HouseScene({ progressRef, activeStage }: HouseSceneProps) {
         dpr={[1, 1.5]}
         camera={{ position: [9, 7.4, 20], fov: 41, near: 0.1, far: 100 }}
         gl={{ antialias: true, powerPreference: "high-performance" }}
+        fallback={
+          <div className="scene-fallback">
+            <p className="eyebrow">A simpler way in</p>
+            <h2>Good work starts with a feeling.</h2>
+            <p>
+              The 3D view isn’t available in this browser. Fieldhouse brings
+              strategy, design, and craft together to make places, identities,
+              and digital experiences with a lasting sense of place.
+            </p>
+            <a className="contact-link" href="mailto:hello@fieldhouse.studio">
+              hello@fieldhouse.studio
+            </a>
+          </div>
+        }
       >
         <SceneContents progressRef={progressRef} activeStage={activeStage} />
       </Canvas>
