@@ -1,6 +1,6 @@
 "use client";
 
-import { Html } from "@react-three/drei";
+import { Html, Sky, useTexture } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Component, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
@@ -219,6 +219,39 @@ function CameraJourney({ progressRef, stageProgress, reducedMotion, doorRef }: P
   return null;
 }
 
+function StandingSeamRoof({ position, rotation }: { position: [number, number, number]; rotation: number }) {
+  const seamCount = 40;
+  const seamRef = useRef<THREE.InstancedMesh>(null);
+  const seamGeometry = useMemo(() => new THREE.BoxGeometry(5.5, 0.045, 0.035), []);
+  const seamMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: "#29342c", roughness: 0.38, metalness: 0.55 }), []);
+
+  useLayoutEffect(() => {
+    if (!seamRef.current) return;
+
+    const matrix = new THREE.Matrix4();
+    for (let index = 0; index < seamCount; index += 1) {
+      const z = (index - (seamCount - 1) / 2) * 0.38;
+      matrix.makeTranslation(0, 0.17, z);
+      seamRef.current.setMatrixAt(index, matrix);
+      seamRef.current.setColorAt(index, new THREE.Color(index % 4 === 0 ? "#364238" : "#202a23"));
+    }
+
+    seamRef.current.instanceMatrix.needsUpdate = true;
+    seamRef.current.instanceColor!.needsUpdate = true;
+    seamRef.current.computeBoundingSphere();
+  }, [seamCount]);
+
+  return (
+    <group position={position} rotation={[0, 0, rotation]}>
+      <mesh castShadow receiveShadow>
+        <boxGeometry args={[5.66, 0.3, 15.2]} />
+        <meshStandardMaterial color="#27332b" roughness={0.42} metalness={0.48} />
+      </mesh>
+      <instancedMesh ref={seamRef} args={[seamGeometry, seamMaterial, seamCount]} castShadow receiveShadow />
+    </group>
+  );
+}
+
 function HouseArchitecture({
   doorRef,
   wallRefs,
@@ -228,6 +261,24 @@ function HouseArchitecture({
   wallRefs: WallRefs;
   reducedMotion: boolean;
 }) {
+  const [
+    sidingTexture,
+    oakTexture,
+    stoneTexture,
+    lawnTexture,
+    sidingNormal,
+    oakNormal,
+    stoneNormal,
+  ] = useTexture([
+    "/textures/painted-siding.svg",
+    "/textures/dark-oak.svg",
+    "/textures/flagstone.svg",
+    "/textures/soft-lawn.svg",
+    "/textures/siding-normal.svg",
+    "/textures/oak-normal.svg",
+    "/textures/stone-normal.svg",
+  ]);
+  const { gl } = useThree();
   const gable = useMemo(() => {
     const shape = new THREE.Shape();
     shape.moveTo(-HOUSE.width / 2, 0);
@@ -237,50 +288,73 @@ function HouseArchitecture({
     return new THREE.ShapeGeometry(shape);
   }, []);
 
+  useLayoutEffect(() => {
+    const colorTextures = [sidingTexture, oakTexture, stoneTexture, lawnTexture];
+    const normalTextures = [sidingNormal, oakNormal, stoneNormal];
+    for (const texture of [...colorTextures, ...normalTextures]) {
+      texture.anisotropy = Math.min(8, gl.capabilities.getMaxAnisotropy());
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.RepeatWrapping;
+    }
+    for (const texture of colorTextures) texture.colorSpace = THREE.SRGBColorSpace;
+    sidingTexture.repeat.set(2, 2.5);
+    sidingNormal.repeat.set(2, 2.5);
+    oakNormal.repeat.copy(oakTexture.repeat);
+    stoneNormal.repeat.copy(stoneTexture.repeat);
+    lawnTexture.repeat.set(32, 32);
+    for (const texture of [...colorTextures, ...normalTextures]) texture.needsUpdate = true;
+  }, [gl, lawnTexture, oakNormal, oakTexture, sidingNormal, sidingTexture, stoneNormal, stoneTexture]);
+
   return (
     <group>
       <mesh position={[0, -0.265, 0]} receiveShadow>
         <boxGeometry args={[HOUSE.width + HOUSE.wallThickness, 0.53, HOUSE.depth + HOUSE.wallThickness]} />
-        <meshStandardMaterial color="#d5cbb8" roughness={0.9} />
+        <meshStandardMaterial color="#a59b89" map={stoneTexture} normalMap={stoneNormal} normalScale={[0.16, 0.16]} roughness={0.94} />
       </mesh>
       <mesh ref={wallRefs.back} position={[0, HOUSE.wallHeight / 2, HOUSE.backZ]} receiveShadow>
         <boxGeometry args={[HOUSE.width, HOUSE.wallHeight, HOUSE.wallThickness]} />
-        <meshStandardMaterial color="#ebe4d7" roughness={0.9} />
+        <meshStandardMaterial color="#ebe4d7" map={sidingTexture} normalMap={sidingNormal} normalScale={[0.18, 0.18]} roughness={0.82} />
       </mesh>
       <mesh ref={wallRefs.left} position={[-HOUSE.sideX, HOUSE.wallHeight / 2, 0]} receiveShadow>
         <boxGeometry args={[HOUSE.wallThickness, HOUSE.wallHeight, HOUSE.depth]} />
-        <meshStandardMaterial color="#e8e0d2" roughness={0.9} />
+        <meshStandardMaterial color="#e8e0d2" map={sidingTexture} normalMap={sidingNormal} normalScale={[0.18, 0.18]} roughness={0.86} />
       </mesh>
       <mesh ref={wallRefs.right} position={[HOUSE.sideX, HOUSE.wallHeight / 2, 0]} receiveShadow>
         <boxGeometry args={[HOUSE.wallThickness, HOUSE.wallHeight, HOUSE.depth]} />
-        <meshStandardMaterial color="#e8e0d2" roughness={0.9} />
+        <meshStandardMaterial color="#e8e0d2" map={sidingTexture} normalMap={sidingNormal} normalScale={[0.18, 0.18]} roughness={0.86} />
       </mesh>
-      <FrontOpeningWall centerX={-3.8} />
-      <FrontOpeningWall centerX={3.8} />
+      <FrontOpeningWall centerX={-3.8} wallTexture={sidingTexture} wallNormal={sidingNormal} />
+      <FrontOpeningWall centerX={3.8} wallTexture={sidingTexture} wallNormal={sidingNormal} />
       {[-2, 2].map((centerX) => (
         <mesh key={centerX} position={[centerX, HOUSE.wallHeight / 2, HOUSE.frontZ]} receiveShadow>
           <boxGeometry args={[1.2, HOUSE.wallHeight, HOUSE.wallThickness]} />
-          <meshStandardMaterial color="#ebe4d7" roughness={0.9} />
+          <meshStandardMaterial color="#ebe4d7" map={sidingTexture} normalMap={sidingNormal} normalScale={[0.18, 0.18]} roughness={0.82} />
         </mesh>
       ))}
       <mesh position={[0, 4.575, HOUSE.frontZ]} receiveShadow>
         <boxGeometry args={[2.8, 1.25, HOUSE.wallThickness]} />
-        <meshStandardMaterial color="#ebe4d7" roughness={0.9} />
+        <meshStandardMaterial color="#ebe4d7" map={sidingTexture} normalMap={sidingNormal} normalScale={[0.18, 0.18]} roughness={0.82} />
       </mesh>
       <mesh geometry={gable} position={[0, HOUSE.wallHeight, HOUSE.frontZ + HOUSE.wallThickness / 2]}>
-        <meshStandardMaterial color="#d9d1c1" roughness={0.94} side={THREE.DoubleSide} />
+        <meshStandardMaterial color="#e7dfd2" map={sidingTexture} normalMap={sidingNormal} normalScale={[0.18, 0.18]} roughness={0.88} side={THREE.DoubleSide} />
       </mesh>
       <mesh geometry={gable} position={[0, HOUSE.wallHeight, HOUSE.backZ - HOUSE.wallThickness / 2]} rotation={[0, Math.PI, 0]}>
-        <meshStandardMaterial color="#d9d1c1" roughness={0.94} side={THREE.DoubleSide} />
+        <meshStandardMaterial color="#e7dfd2" map={sidingTexture} normalMap={sidingNormal} normalScale={[0.18, 0.18]} roughness={0.88} side={THREE.DoubleSide} />
       </mesh>
-      <mesh position={[-2.5, 6.525, 0]} rotation={[0, 0, 0.487]} castShadow receiveShadow>
-        <boxGeometry args={[5.66, 0.3, 15.2]} />
-        <meshStandardMaterial color="#465650" roughness={0.78} />
-      </mesh>
-      <mesh position={[2.5, 6.525, 0]} rotation={[0, 0, -0.487]} castShadow receiveShadow>
-        <boxGeometry args={[5.66, 0.3, 15.2]} />
-        <meshStandardMaterial color="#465650" roughness={0.78} />
-      </mesh>
+      <StandingSeamRoof position={[-2.5, 6.525, 0]} rotation={0.487} />
+      <StandingSeamRoof position={[2.5, 6.525, 0]} rotation={-0.487} />
+      {[-1, 1].map((side) => (
+        <group key={side}>
+          <mesh position={[side * 5.08, 5.15, 0]} castShadow receiveShadow>
+            <boxGeometry args={[0.16, 0.16, 15.45]} />
+            <meshStandardMaterial color="#303a32" roughness={0.4} metalness={0.54} />
+          </mesh>
+          <mesh position={[side * 5.08, 2.58, 7.08]} castShadow>
+            <boxGeometry args={[0.1, 5.12, 0.1]} />
+            <meshStandardMaterial color="#303a32" roughness={0.42} metalness={0.48} />
+          </mesh>
+        </group>
+      ))}
       <mesh position={[-2.425, 6.224, 0]} rotation={[0, 0, 0.487]} receiveShadow>
         <boxGeometry args={[5.6, 0.025, 14.75]} />
         <meshStandardMaterial color="#e8e1d4" roughness={0.92} side={THREE.DoubleSide} />
@@ -311,21 +385,21 @@ function HouseArchitecture({
         <boxGeometry args={[2.25, 0.28, 0.08]} />
         <meshStandardMaterial color="#c4b69c" roughness={0.72} />
       </mesh>
-      <mesh position={[0, 0.12, 7.18]}>
+      <mesh position={[0, 0.12, 7.18]} receiveShadow>
         <boxGeometry args={[2.96, 0.16, 0.48]} />
-        <meshStandardMaterial color="#d9c9a6" roughness={0.62} />
+        <meshStandardMaterial color="#bbb09c" map={stoneTexture} normalMap={stoneNormal} normalScale={[0.18, 0.18]} roughness={0.86} />
       </mesh>
       <mesh position={[0, -0.08, 7.45]} receiveShadow>
         <boxGeometry args={[3.4, 0.22, 0.78]} />
-        <meshStandardMaterial color="#aaa18f" roughness={0.86} />
+        <meshStandardMaterial color="#9f988b" map={stoneTexture} normalMap={stoneNormal} normalScale={[0.18, 0.18]} roughness={0.9} />
       </mesh>
       <mesh position={[0, -0.25, 7.78]} receiveShadow>
         <boxGeometry args={[3.85, 0.22, 0.76]} />
-        <meshStandardMaterial color="#b9b1a1" roughness={0.86} />
+        <meshStandardMaterial color="#a7a091" map={stoneTexture} normalMap={stoneNormal} normalScale={[0.18, 0.18]} roughness={0.9} />
       </mesh>
       <mesh position={[0, -0.42, 8.12]} receiveShadow>
         <boxGeometry args={[4.3, 0.22, 0.78]} />
-        <meshStandardMaterial color="#c7bead" roughness={0.86} />
+        <meshStandardMaterial color="#b8af9e" map={stoneTexture} normalMap={stoneNormal} normalScale={[0.18, 0.18]} roughness={0.9} />
       </mesh>
       <group>
         {[-1, 1].map((side) => (
@@ -340,7 +414,7 @@ function HouseArchitecture({
         </mesh>
         <mesh position={[0, 3.94, 7.72]}>
           <boxGeometry args={[3.88, 0.035, 1.05]} />
-          <meshStandardMaterial color="#8a6948" roughness={0.72} />
+          <meshStandardMaterial color="#8a6948" map={oakTexture} normalMap={oakNormal} normalScale={[0.12, 0.12]} roughness={0.68} />
         </mesh>
       </group>
       <group>
@@ -352,7 +426,7 @@ function HouseArchitecture({
               castShadow
             >
               <boxGeometry args={[0.045, 3.55, 0.075]} />
-              <meshStandardMaterial color="#806347" roughness={0.7} />
+              <meshStandardMaterial color="#806347" map={oakTexture} normalMap={oakNormal} normalScale={[0.12, 0.12]} roughness={0.68} />
             </mesh>
           )),
         )}
@@ -372,11 +446,18 @@ function HouseArchitecture({
           </group>
         ))}
       </group>
-      <Door ref={doorRef} />
-      <DoorFrame />
-      <FrontWindow position={[-3.8, 2.7, 7.17]} />
-      <FrontWindow position={[3.8, 2.7, 7.17]} />
-      <HouseDetails reducedMotion={reducedMotion} />
+      <Door ref={doorRef} oakTexture={oakTexture} oakNormal={oakNormal} />
+      <DoorFrame oakTexture={oakTexture} oakNormal={oakNormal} />
+      <FrontWindow position={[-3.8, 2.7, 7.17]} oakTexture={oakTexture} oakNormal={oakNormal} />
+      <FrontWindow position={[3.8, 2.7, 7.17]} oakTexture={oakTexture} oakNormal={oakNormal} />
+      <HouseDetails
+        reducedMotion={reducedMotion}
+        oakTexture={oakTexture}
+        oakNormal={oakNormal}
+        stoneTexture={stoneTexture}
+        stoneNormal={stoneNormal}
+        lawnTexture={lawnTexture}
+      />
     </group>
   );
 }
@@ -419,59 +500,67 @@ function InteriorFloorboards() {
   );
 }
 
-function FrontOpeningWall({ centerX }: { centerX: number }) {
+function FrontOpeningWall({ centerX, wallTexture, wallNormal }: {
+  centerX: number;
+  wallTexture: THREE.Texture;
+  wallNormal: THREE.Texture;
+}) {
   return (
     <group>
       {[-1, 1].map((side) => (
         <mesh key={side} position={[centerX + side * 0.99, HOUSE.wallHeight / 2, HOUSE.frontZ]} receiveShadow>
           <boxGeometry args={[0.42, HOUSE.wallHeight, HOUSE.wallThickness]} />
-          <meshStandardMaterial color="#ebe4d7" roughness={0.9} />
+          <meshStandardMaterial color="#ebe4d7" map={wallTexture} normalMap={wallNormal} normalScale={[0.18, 0.18]} roughness={0.82} />
         </mesh>
       ))}
       <mesh position={[centerX, 0.975, HOUSE.frontZ]} receiveShadow>
         <boxGeometry args={[1.3, 1.95, HOUSE.wallThickness]} />
-        <meshStandardMaterial color="#ebe4d7" roughness={0.9} />
+        <meshStandardMaterial color="#ebe4d7" map={wallTexture} normalMap={wallNormal} normalScale={[0.18, 0.18]} roughness={0.82} />
       </mesh>
       <mesh position={[centerX, 4.325, HOUSE.frontZ]} receiveShadow>
         <boxGeometry args={[1.3, 1.75, HOUSE.wallThickness]} />
-        <meshStandardMaterial color="#ebe4d7" roughness={0.9} />
+        <meshStandardMaterial color="#ebe4d7" map={wallTexture} normalMap={wallNormal} normalScale={[0.18, 0.18]} roughness={0.82} />
       </mesh>
     </group>
   );
 }
 
-function DoorFrame() {
+function DoorFrame({ oakTexture, oakNormal }: { oakTexture: THREE.Texture; oakNormal: THREE.Texture }) {
   return (
     <group position={[0, 0, 7.16]}>
       {[-1.4, 1.4].map((x) => (
         <mesh key={x} position={[x, 1.95, 0]} castShadow>
           <boxGeometry args={[0.14, 3.9, 0.22]} />
-          <meshStandardMaterial color="#d2bd91" roughness={0.6} />
+          <meshStandardMaterial color="#725638" map={oakTexture} normalMap={oakNormal} normalScale={[0.12, 0.12]} roughness={0.62} />
         </mesh>
       ))}
       <mesh position={[0, 3.87, 0]} castShadow>
         <boxGeometry args={[2.94, 0.16, 0.22]} />
-        <meshStandardMaterial color="#d2bd91" roughness={0.6} />
+        <meshStandardMaterial color="#725638" map={oakTexture} normalMap={oakNormal} normalScale={[0.12, 0.12]} roughness={0.62} />
       </mesh>
-      <mesh position={[0, 0.1, 0.07]}>
+      <mesh position={[0, 0.1, 0.07]} receiveShadow>
         <boxGeometry args={[2.94, 0.12, 0.34]} />
-        <meshStandardMaterial color="#b7a47f" roughness={0.72} />
+        <meshStandardMaterial color="#b7a47f" roughness={0.76} />
       </mesh>
     </group>
   );
 }
 
-function Door({ ref }: { ref: MutableRefObject<THREE.Group | null> }) {
+function Door({ ref, oakTexture, oakNormal }: {
+  ref: MutableRefObject<THREE.Group | null>;
+  oakTexture: THREE.Texture;
+  oakNormal: THREE.Texture;
+}) {
   return (
     <group ref={ref} position={[-1.36, 0, 7.03]}>
       <mesh position={[1.27, 1.86, 0]} castShadow>
         <boxGeometry args={[2.54, 3.72, 0.18]} />
-        <meshStandardMaterial color="#865b3f" roughness={0.63} />
+        <meshStandardMaterial color="#8a694a" map={oakTexture} normalMap={oakNormal} normalScale={[0.14, 0.14]} roughness={0.62} />
       </mesh>
       {[0.36, 1.3, 2.25].map((height) => (
         <mesh key={height} position={[1.27, height, 0.105]}>
           <boxGeometry args={[2.1, 0.66, 0.045]} />
-          <meshStandardMaterial color="#986b4c" roughness={0.66} />
+          <meshStandardMaterial color="#986b4c" map={oakTexture} normalMap={oakNormal} normalScale={[0.12, 0.12]} roughness={0.64} />
         </mesh>
       ))}
       <mesh position={[2.24, 1.85, 0.17]}>
@@ -482,43 +571,68 @@ function Door({ ref }: { ref: MutableRefObject<THREE.Group | null> }) {
   );
 }
 
-function FrontWindow({ position }: { position: [number, number, number] }) {
+function FrontWindow({ position, oakTexture, oakNormal }: {
+  position: [number, number, number];
+  oakTexture: THREE.Texture;
+  oakNormal: THREE.Texture;
+}) {
   return (
     <group position={position}>
       <mesh>
         <boxGeometry args={[1.46, 1.48, 0.13]} />
-        <meshStandardMaterial color="#d2bd91" roughness={0.55} />
+        <meshStandardMaterial color="#705339" map={oakTexture} normalMap={oakNormal} normalScale={[0.12, 0.12]} roughness={0.6} />
       </mesh>
       <mesh position={[0, 0, 0.08]}>
         <boxGeometry args={[1.19, 1.25, 0.05]} />
-        <meshStandardMaterial color="#a5b1a6" roughness={0.22} metalness={0.08} transparent opacity={0.72} />
+        <meshStandardMaterial color="#718080" roughness={0.18} metalness={0.12} transparent opacity={0.88} />
       </mesh>
       <mesh position={[0, 0, 0.12]}>
         <boxGeometry args={[0.045, 1.21, 0.045]} />
-        <meshStandardMaterial color="#e3d7bf" roughness={0.6} />
+        <meshStandardMaterial color="#604a35" map={oakTexture} normalMap={oakNormal} normalScale={[0.12, 0.12]} roughness={0.66} />
       </mesh>
       <mesh position={[0, 0, 0.12]}>
         <boxGeometry args={[1.15, 0.045, 0.045]} />
-        <meshStandardMaterial color="#e3d7bf" roughness={0.6} />
+        <meshStandardMaterial color="#604a35" map={oakTexture} normalMap={oakNormal} normalScale={[0.12, 0.12]} roughness={0.66} />
       </mesh>
       <mesh position={[0, -0.82, 0.12]} castShadow>
         <boxGeometry args={[1.64, 0.12, 0.32]} />
-        <meshStandardMaterial color="#c7b28c" roughness={0.72} />
+        <meshStandardMaterial color="#705339" map={oakTexture} normalMap={oakNormal} normalScale={[0.12, 0.12]} roughness={0.64} />
       </mesh>
       <mesh position={[0, 0.82, 0.12]} castShadow>
         <boxGeometry args={[1.64, 0.12, 0.32]} />
-        <meshStandardMaterial color="#c7b28c" roughness={0.72} />
+        <meshStandardMaterial color="#705339" map={oakTexture} normalMap={oakNormal} normalScale={[0.12, 0.12]} roughness={0.64} />
       </mesh>
+      {[-1, 1].map((side) => (
+        <group key={side} position={[side * 0.83, 0, 0.1]}>
+          <mesh castShadow>
+            <boxGeometry args={[0.16, 1.56, 0.1]} />
+            <meshStandardMaterial color="#674b33" map={oakTexture} normalMap={oakNormal} normalScale={[0.13, 0.13]} roughness={0.67} />
+          </mesh>
+          {[-0.56, -0.28, 0, 0.28, 0.56].map((height) => (
+            <mesh key={height} position={[0, height, 0.065]}>
+              <boxGeometry args={[0.22, 0.045, 0.035]} />
+              <meshStandardMaterial color="#91714f" map={oakTexture} normalMap={oakNormal} normalScale={[0.12, 0.12]} roughness={0.64} />
+            </mesh>
+          ))}
+        </group>
+      ))}
     </group>
   );
 }
 
-function HouseDetails({ reducedMotion }: { reducedMotion: boolean }) {
+function HouseDetails({ reducedMotion, oakTexture, oakNormal, stoneTexture, stoneNormal, lawnTexture }: {
+  reducedMotion: boolean;
+  oakTexture: THREE.Texture;
+  oakNormal: THREE.Texture;
+  stoneTexture: THREE.Texture;
+  stoneNormal: THREE.Texture;
+  lawnTexture: THREE.Texture;
+}) {
   return (
     <group>
       <mesh position={[0, -0.445, 0]} receiveShadow castShadow>
         <boxGeometry args={[HOUSE.width + 0.3, 0.17, HOUSE.depth + 0.3]} />
-        <meshStandardMaterial color="#aaa18f" roughness={0.86} />
+        <meshStandardMaterial color="#aaa18f" map={stoneTexture} normalMap={stoneNormal} normalScale={[0.14, 0.14]} roughness={0.9} />
       </mesh>
       <mesh position={[0, 0.008, 0]} receiveShadow>
         <boxGeometry args={[HOUSE.width - HOUSE.wallThickness, 0.015, HOUSE.depth - HOUSE.wallThickness]} />
@@ -576,7 +690,7 @@ function HouseDetails({ reducedMotion }: { reducedMotion: boolean }) {
         <meshStandardMaterial color="#d9bc87" emissive="#6f4820" emissiveIntensity={0.45} />
       </mesh>
       <pointLight position={[0, 4.45, -1.5]} color="#f0d9a9" intensity={26} distance={10} decay={2} />
-      <ExteriorGarden reducedMotion={reducedMotion} />
+      <ExteriorGarden reducedMotion={reducedMotion} stoneTexture={stoneTexture} stoneNormal={stoneNormal} lawnTexture={lawnTexture} />
     </group>
   );
 }
@@ -601,6 +715,18 @@ function GardenTree({
 
   return (
     <group position={position}>
+      <mesh position={[0, 0.34, 0]} castShadow receiveShadow>
+        <cylinderGeometry args={[0.62, 0.48, 0.68, 18, 1, true]} />
+        <meshStandardMaterial color="#8d6b52" roughness={0.88} side={THREE.DoubleSide} />
+      </mesh>
+      <mesh position={[0, 0.68, 0]}>
+        <torusGeometry args={[0.59, 0.035, 8, 20]} />
+        <meshStandardMaterial color="#9b785c" roughness={0.78} />
+      </mesh>
+      <mesh position={[0, 0.68, 0]}>
+        <cylinderGeometry args={[0.56, 0.56, 0.06, 18]} />
+        <meshStandardMaterial color="#514a38" roughness={1} />
+      </mesh>
       <mesh position={[0, 1.5, 0]} castShadow receiveShadow>
         <cylinderGeometry args={[0.11, 0.19, 3, 8]} />
         <meshStandardMaterial color="#80664d" roughness={0.92} />
@@ -628,12 +754,16 @@ function GardenTree({
   );
 }
 
-function GardenPlanter({ position }: { position: [number, number, number] }) {
+function GardenPlanter({ position, stoneTexture, stoneNormal }: {
+  position: [number, number, number];
+  stoneTexture: THREE.Texture;
+  stoneNormal: THREE.Texture;
+}) {
   return (
     <group position={position}>
       <mesh position={[0, 0.18, 0]} receiveShadow>
         <boxGeometry args={[2.7, 0.48, 5.6]} />
-        <meshStandardMaterial color="#b8b0a0" roughness={0.88} />
+        <meshStandardMaterial color="#b8b0a0" map={stoneTexture} normalMap={stoneNormal} normalScale={[0.16, 0.16]} roughness={0.9} />
       </mesh>
       <mesh position={[0, 0.43, 0]}>
         <boxGeometry args={[2.48, 0.06, 5.36]} />
@@ -673,31 +803,36 @@ function GardenBollard({ position }: { position: [number, number, number] }) {
   );
 }
 
-function ExteriorGarden({ reducedMotion }: { reducedMotion: boolean }) {
+function ExteriorGarden({ reducedMotion, stoneTexture, stoneNormal, lawnTexture }: {
+  reducedMotion: boolean;
+  stoneTexture: THREE.Texture;
+  stoneNormal: THREE.Texture;
+  lawnTexture: THREE.Texture;
+}) {
   return (
     <group>
       <mesh position={[0, -0.58, 14]} receiveShadow>
         <boxGeometry args={[200, 0.1, 200]} />
-        <meshStandardMaterial color="#a7ad98" roughness={1} />
+        <meshStandardMaterial color="#a7ad98" map={lawnTexture} roughness={1} />
       </mesh>
       <mesh position={[0, -0.43, 8.95]} receiveShadow>
-        <boxGeometry args={[10.4, 0.18, 3.2]} />
-        <meshStandardMaterial color="#c8c0af" roughness={0.94} />
+        <boxGeometry args={[7.2, 0.18, 3.2]} />
+        <meshStandardMaterial color="#c8c0af" map={stoneTexture} normalMap={stoneNormal} normalScale={[0.16, 0.16]} roughness={0.94} />
       </mesh>
       {Array.from({ length: 6 }, (_, index) => (
         <mesh key={index} position={[0, -0.43, 9.3 + index * 1.38]} receiveShadow>
           <boxGeometry args={[3.25, 0.14, 1.22]} />
-          <meshStandardMaterial color={index % 2 ? "#d4ccbd" : "#cfc7b8"} roughness={0.9} />
+          <meshStandardMaterial color={index % 2 ? "#d4ccbd" : "#cfc7b8"} map={stoneTexture} normalMap={stoneNormal} normalScale={[0.14, 0.14]} roughness={0.9} />
         </mesh>
       ))}
       {[-1, 1].map((side) => (
         <group key={side}>
           <mesh position={[side * 11.7, -0.27, 13.3]} receiveShadow>
             <boxGeometry args={[0.28, 0.62, 17]} />
-            <meshStandardMaterial color="#b7b19f" roughness={0.9} />
+            <meshStandardMaterial color="#b7b19f" map={stoneTexture} normalMap={stoneNormal} normalScale={[0.12, 0.12]} roughness={0.9} />
           </mesh>
-          <GardenPlanter position={[side * 4.7, -0.48, 13.15]} />
-          <GardenTree position={[side * 8.15, -0.52, 12.8]} reducedMotion={reducedMotion} variant={side + 1} />
+          <GardenPlanter position={[side * 6.15, -0.48, 13.15]} stoneTexture={stoneTexture} stoneNormal={stoneNormal} />
+          <GardenTree position={[side * 6.15, -0.52, 12.8]} reducedMotion={reducedMotion} variant={side + 1} />
           {[10.75, 14.5].map((z) => (
             <GardenBollard key={z} position={[side * 2.18, -0.53, z]} />
           ))}
@@ -705,7 +840,7 @@ function ExteriorGarden({ reducedMotion }: { reducedMotion: boolean }) {
       ))}
       <mesh position={[0, -0.505, 17.8]} receiveShadow>
         <boxGeometry args={[18.5, 0.16, 0.24]} />
-        <meshStandardMaterial color="#b7b19f" roughness={0.9} />
+        <meshStandardMaterial color="#b7b19f" map={stoneTexture} normalMap={stoneNormal} normalScale={[0.12, 0.12]} roughness={0.9} />
       </mesh>
     </group>
   );
@@ -796,13 +931,14 @@ function SceneContents({ progressRef, activeStage, stageProgress, reducedMotion 
 
   return (
     <>
-      <color attach="background" args={["#d8d9cf"]} />
-      <fog attach="fog" args={["#d8d9cf", 26, 58]} />
-      <ambientLight intensity={1.05} color="#fff2df" />
+      <color attach="background" args={["#e0d4c0"]} />
+      <fog attach="fog" args={["#e0d4c0", 40, 96]} />
+      <Sky distance={450000} sunPosition={[0.8, 0.55, 0.3]} turbidity={7} rayleigh={1.7} />
+      <hemisphereLight args={["#fff5e4", "#8e8778", 0.72]} />
       <directionalLight
         position={[-8, 14, 11]}
-        intensity={2.35}
-        color="#fff0d8"
+        intensity={2.5}
+        color="#fff2df"
         castShadow
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
@@ -812,7 +948,7 @@ function SceneContents({ progressRef, activeStage, stageProgress, reducedMotion 
         shadow-camera-top={16}
         shadow-camera-bottom={-12}
       />
-      <directionalLight position={[8, 9, -10]} intensity={0.75} color="#e1e7d8" />
+      <directionalLight position={[8, 9, -10]} intensity={0.62} color="#e3e3d6" />
       <HouseArchitecture doorRef={doorRef} wallRefs={wallRefs} reducedMotion={reducedMotion} />
       <CameraJourney
         progressRef={progressRef}
@@ -929,7 +1065,12 @@ export function HouseScene({ progressRef, activeStage, stageProgress, reducedMot
         shadows="percentage"
         dpr={[1, 1.4]}
         camera={{ position: [9, 7.4, 20], fov: 41, near: 0.1, far: 100 }}
-        gl={{ antialias: true, powerPreference: "high-performance" }}
+        gl={{
+          antialias: true,
+          powerPreference: "high-performance",
+          toneMapping: THREE.ACESFilmicToneMapping,
+          toneMappingExposure: 1.05,
+        }}
         fallback={
           <div className="scene-fallback">
             <p className="eyebrow">A simpler way in</p>
