@@ -68,69 +68,101 @@ export function HouseExperience() {
 
   const stage = SCENE_STAGES[activeStage];
 
+  const moveToStage = (nextStage: number) => {
+    const stageIndex = Math.min(SCENE_STAGES.length - 1, Math.max(0, nextStage));
+    const scrollableDistance = document.documentElement.scrollHeight - window.innerHeight;
+    window.scrollTo({
+      top: SCENE_STAGES[stageIndex].progress * scrollableDistance,
+      behavior: reducedMotion ? "auto" : "smooth",
+    });
+  };
+
   return (
     <>
       <a className="skip-link" href="#story-content">
         Skip the 3D experience
       </a>
       <main id="story-content">
-        {!reducedMotion && (
-          <div className="immersive-journey">
-            <div className="scene-backdrop" aria-hidden="true" />
-            <HouseScene progressRef={progressRef} activeStage={activeStage} />
-            <header className="experience-header">
-              <a className="wordmark" href="#story-content" aria-label="Fieldhouse home">
-                <span className="wordmark-symbol" aria-hidden="true">F</span>
-                <span>FIELDHOUSE</span>
-              </a>
-              <p className="chapter-status" aria-live="polite">
-                <span>{stage.number}</span>
-                <span className="chapter-divider" aria-hidden="true">/</span>
-                {stage.label}
-              </p>
-            </header>
-            <div className={`landing-copy${activeStage > 1 ? " landing-copy-hidden" : ""}`}>
-              <p className="eyebrow">Independent creative studio · Est. 2016</p>
-              <h1>A home for<br />good ideas.</h1>
-              <p className="landing-description">
-                Thoughtful places, identities, and digital experiences — made to feel like they belong.
-              </p>
-            </div>
-            <div
-              className={`scroll-cue${activeStage > 0 ? " scroll-cue-hidden" : ""}`}
-              aria-hidden="true"
-            >
-              <span className="scroll-cue-line" />
-              <span>SCROLL TO EXPLORE</span>
-            </div>
-            <div className="journey-progress" aria-hidden="true">
-              <span className={`journey-progress-fill journey-progress-fill-${activeStage}`} />
-            </div>
-            <div className="scroll-track" aria-hidden="true">
-              {SCENE_STAGES.map((item) => (
-                <div className="scroll-beat" key={item.number} />
-              ))}
-            </div>
-            <div className="seo-story" aria-label="About Fieldhouse">
-              <h2>A home for good ideas.</h2>
-              <p>
-                Fieldhouse is an independent creative studio shaping thoughtful places,
-                identities, and digital experiences.
-              </p>
-              <h2>Our story</h2>
-              <p>
-                We bring strategy, design, and craft together to make work with a sense
-                of place and a lasting point of view.
-              </p>
-              <h2>What we do</h2>
-              <p>Brand identity, spatial design, and digital experiences — considered from the first sketch to the final detail.</p>
-              <h2>Selected work</h2>
-              <p>From quiet neighborhood landmarks to ambitious digital homes, we make the useful feel unforgettable.</p>
-              <h2>Come say hello</h2>
-              <p>Tell us what you’re imagining at hello@fieldhouse.studio.</p>
-            </div>
+        <div className="immersive-journey">
+          <div className="scene-backdrop" aria-hidden="true" />
+          <HouseScene
+            progressRef={progressRef}
+            activeStage={activeStage}
+            stageProgress={stage.progress}
+            reducedMotion={reducedMotion}
+          />
+          <header className="experience-header">
+            <a className="wordmark" href="#story-content" aria-label="Fieldhouse home">
+              <span className="wordmark-symbol" aria-hidden="true">F</span>
+              <span>FIELDHOUSE</span>
+            </a>
+            <p className="chapter-status" aria-live="polite">
+              <span>{stage.number}</span>
+              <span className="chapter-divider" aria-hidden="true">/</span>
+              {stage.label}
+            </p>
+          </header>
+          <div className={`landing-copy${activeStage > 1 ? " landing-copy-hidden" : ""}`}>
+            <p className="eyebrow">Independent creative studio · Est. 2016</p>
+            <h1>A home for<br />good ideas.</h1>
+            <p className="landing-description">
+              Thoughtful places, identities, and digital experiences — made to feel like they belong.
+            </p>
           </div>
-        )}
+          <div
+            className={`scroll-cue${activeStage > 0 ? " scroll-cue-hidden" : ""}`}
+            aria-hidden="true"
+          >
+            <span className="scroll-cue-line" />
+            <span>SCROLL TO STEP INSIDE</span>
+          </div>
+          <nav className="journey-nav" aria-label="House chapters">
+            <button
+              type="button"
+              onClick={() => moveToStage(activeStage - 1)}
+              disabled={activeStage === 0}
+              aria-label="Previous chapter"
+            >
+              <span aria-hidden="true">←</span>
+              <span>Previous</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => moveToStage(activeStage + 1)}
+              disabled={activeStage === SCENE_STAGES.length - 1}
+              aria-label="Next chapter"
+            >
+              <span>Next</span>
+              <span aria-hidden="true">→</span>
+            </button>
+          </nav>
+          <div className="journey-progress" aria-hidden="true">
+            <span className={`journey-progress-fill journey-progress-fill-${activeStage}`} />
+          </div>
+          <div className="scroll-track" aria-hidden="true">
+            {SCENE_STAGES.map((item) => (
+              <div className="scroll-beat" key={item.number} />
+            ))}
+          </div>
+          <div className="seo-story" aria-label="About Fieldhouse">
+            <h2>A home for good ideas.</h2>
+            <p>
+              Fieldhouse is an independent creative studio shaping thoughtful places,
+              identities, and digital experiences.
+            </p>
+            <h2>Our story</h2>
+            <p>
+              We bring strategy, design, and craft together to make work with a sense
+              of place and a lasting point of view.
+            </p>
+            <h2>What we do</h2>
+            <p>Brand identity, spatial design, and digital experiences — considered from the first sketch to the final detail.</p>
+            <h2>Selected work</h2>
+            <p>From quiet neighborhood landmarks to ambitious digital homes, we make the useful feel unforgettable.</p>
+            <h2>Come say hello</h2>
+            <p>Tell us what you’re imagining at hello@fieldhouse.studio.</p>
+          </div>
+        </div>
         <div className="reduced-journey">
           <header className="reduced-header">
             <a className="wordmark" href="#story-content" aria-label="Fieldhouse home">

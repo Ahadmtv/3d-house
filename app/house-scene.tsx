@@ -2,7 +2,7 @@
 
 import { Html } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useLayoutEffect, useMemo, useRef } from "react";
+import { Component, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { MutableRefObject, ReactNode, RefObject } from "react";
 
@@ -63,10 +63,10 @@ const WALL_MOUNTS = {
 } as const;
 
 const PANEL_LAYOUTS = {
-  welcome: { widths: [360, 300, 264], heights: [390, 350, 315] },
+  welcome: { widths: [360, 300, 264], heights: [430, 420, 390] },
   about: { widths: [340, 300, 264], heights: [390, 350, 315] },
   services: { widths: [360, 300, 264], heights: [390, 350, 315] },
-  work: { widths: [325, 300, 264], heights: [340, 350, 315] },
+  work: { widths: [325, 300, 264], heights: [350, 330, 300] },
   contact: { widths: [300, 300, 286], heights: [390, 350, 315] },
 } as const;
 
@@ -136,9 +136,41 @@ function sampleCameraPath(
 type HouseSceneProps = {
   progressRef: MutableRefObject<number>;
   activeStage: number;
+  stageProgress: number;
+  reducedMotion: boolean;
 };
 
-function CameraJourney({ progressRef, doorRef }: Pick<HouseSceneProps, "progressRef"> & {
+type SceneErrorBoundaryState = { hasError: boolean };
+
+class SceneErrorBoundary extends Component<{ children: ReactNode }, SceneErrorBoundaryState> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError(): SceneErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="scene-fallback" role="status">
+          <p className="eyebrow">A simpler way in</p>
+          <h2>Good work starts with a feeling.</h2>
+          <p>
+            The 3D view isn’t available here. Fieldhouse brings strategy, design,
+            and craft together to make places, identities, and digital experiences.
+          </p>
+          <a className="contact-link" href="mailto:hello@fieldhouse.studio">
+            hello@fieldhouse.studio
+          </a>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+function CameraJourney({ progressRef, stageProgress, reducedMotion, doorRef }: Pick<HouseSceneProps, "progressRef" | "stageProgress" | "reducedMotion"> & {
   doorRef: MutableRefObject<THREE.Group | null>;
 }) {
   const cameraPositionRef = useRef(new THREE.Vector3());
@@ -154,7 +186,9 @@ function CameraJourney({ progressRef, doorRef }: Pick<HouseSceneProps, "progress
       }
     }
 
-    const progress = THREE.MathUtils.clamp(progressRef.current, 0, 1);
+    const progress = reducedMotion
+      ? stageProgress
+      : THREE.MathUtils.clamp(progressRef.current, 0, 1);
     sampleCameraPath(progress, "position", isNarrow, cameraPositionRef.current);
     sampleCameraPath(progress, "target", false, cameraTargetRef.current);
     camera.position.copy(cameraPositionRef.current);
@@ -193,27 +227,27 @@ function HouseArchitecture({
       </mesh>
       <mesh ref={wallRefs.back} position={[0, HOUSE.wallHeight / 2, HOUSE.backZ]} receiveShadow>
         <boxGeometry args={[HOUSE.width, HOUSE.wallHeight, HOUSE.wallThickness]} />
-        <meshStandardMaterial color="#e8e1d4" roughness={0.92} />
+        <meshStandardMaterial color="#ebe4d7" roughness={0.9} />
       </mesh>
       <mesh ref={wallRefs.left} position={[-HOUSE.sideX, HOUSE.wallHeight / 2, 0]} receiveShadow>
         <boxGeometry args={[HOUSE.wallThickness, HOUSE.wallHeight, HOUSE.depth]} />
-        <meshStandardMaterial color="#e4dccd" roughness={0.92} />
+        <meshStandardMaterial color="#e8e0d2" roughness={0.9} />
       </mesh>
       <mesh ref={wallRefs.right} position={[HOUSE.sideX, HOUSE.wallHeight / 2, 0]} receiveShadow>
         <boxGeometry args={[HOUSE.wallThickness, HOUSE.wallHeight, HOUSE.depth]} />
-        <meshStandardMaterial color="#e4dccd" roughness={0.92} />
+        <meshStandardMaterial color="#e8e0d2" roughness={0.9} />
       </mesh>
       <FrontOpeningWall centerX={-3.8} />
       <FrontOpeningWall centerX={3.8} />
       {[-2, 2].map((centerX) => (
         <mesh key={centerX} position={[centerX, HOUSE.wallHeight / 2, HOUSE.frontZ]} receiveShadow>
           <boxGeometry args={[1.2, HOUSE.wallHeight, HOUSE.wallThickness]} />
-          <meshStandardMaterial color="#e8e1d4" roughness={0.92} />
+          <meshStandardMaterial color="#ebe4d7" roughness={0.9} />
         </mesh>
       ))}
       <mesh position={[0, 4.575, HOUSE.frontZ]} receiveShadow>
         <boxGeometry args={[2.8, 1.25, HOUSE.wallThickness]} />
-        <meshStandardMaterial color="#e8e1d4" roughness={0.92} />
+        <meshStandardMaterial color="#ebe4d7" roughness={0.9} />
       </mesh>
       <mesh geometry={gable} position={[0, HOUSE.wallHeight, HOUSE.frontZ + HOUSE.wallThickness / 2]}>
         <meshStandardMaterial color="#d9d1c1" roughness={0.94} side={THREE.DoubleSide} />
@@ -328,16 +362,16 @@ function FrontOpeningWall({ centerX }: { centerX: number }) {
       {[-1, 1].map((side) => (
         <mesh key={side} position={[centerX + side * 0.99, HOUSE.wallHeight / 2, HOUSE.frontZ]} receiveShadow>
           <boxGeometry args={[0.42, HOUSE.wallHeight, HOUSE.wallThickness]} />
-          <meshStandardMaterial color="#e8e1d4" roughness={0.92} />
+          <meshStandardMaterial color="#ebe4d7" roughness={0.9} />
         </mesh>
       ))}
       <mesh position={[centerX, 0.975, HOUSE.frontZ]} receiveShadow>
         <boxGeometry args={[1.3, 1.95, HOUSE.wallThickness]} />
-        <meshStandardMaterial color="#e8e1d4" roughness={0.92} />
+        <meshStandardMaterial color="#ebe4d7" roughness={0.9} />
       </mesh>
       <mesh position={[centerX, 4.325, HOUSE.frontZ]} receiveShadow>
         <boxGeometry args={[1.3, 1.75, HOUSE.wallThickness]} />
-        <meshStandardMaterial color="#e8e1d4" roughness={0.92} />
+        <meshStandardMaterial color="#ebe4d7" roughness={0.9} />
       </mesh>
     </group>
   );
@@ -394,7 +428,7 @@ function FrontWindow({ position }: { position: [number, number, number] }) {
       </mesh>
       <mesh position={[0, 0, 0.08]}>
         <boxGeometry args={[1.19, 1.25, 0.05]} />
-        <meshStandardMaterial color="#81938c" roughness={0.28} metalness={0.08} />
+        <meshStandardMaterial color="#a5b1a6" roughness={0.22} metalness={0.08} transparent opacity={0.72} />
       </mesh>
       <mesh position={[0, 0, 0.12]}>
         <boxGeometry args={[0.045, 1.21, 0.045]} />
@@ -492,12 +526,14 @@ function WallPanel({
   eyebrow,
   title,
   children,
+  media,
   wallRefs,
 }: {
   panel: keyof typeof WALL_MOUNTS;
   eyebrow: string;
   title: ReactNode;
   children: ReactNode;
+  media?: ReactNode;
   wallRefs: WallRefs;
 }) {
   const { size } = useThree();
@@ -516,7 +552,7 @@ function WallPanel({
       <group position={mount.position} rotation={[0, mount.rotation, 0]}>
         <mesh position={[0, 0, -0.04]} castShadow receiveShadow>
           <boxGeometry args={[frameWidth, frameHeight, 0.07]} />
-          <meshStandardMaterial color="#98764e" roughness={0.72} />
+          <meshStandardMaterial color="#98764e" roughness={0.62} metalness={0.16} />
         </mesh>
         <mesh position={[0, 0, 0.002]}>
           <boxGeometry args={[matWidth, matHeight, 0.018]} />
@@ -531,6 +567,7 @@ function WallPanel({
         >
           <article className={`wall-panel panel-${panel}`}>
             <p className="panel-eyebrow">{eyebrow}</p>
+            {media}
             <h2>{title}</h2>
             {children}
           </article>
@@ -540,7 +577,7 @@ function WallPanel({
   );
 }
 
-function SceneContents({ progressRef, activeStage }: HouseSceneProps) {
+function SceneContents({ progressRef, activeStage, stageProgress, reducedMotion }: HouseSceneProps) {
   const doorRef = useRef<THREE.Group | null>(null);
   const wallRefs: WallRefs = {
     back: useRef<THREE.Mesh | null>(null),
@@ -550,13 +587,13 @@ function SceneContents({ progressRef, activeStage }: HouseSceneProps) {
 
   return (
     <>
-      <color attach="background" args={["#b7c0b6"]} />
-      <fog attach="fog" args={["#b7c0b6", 26, 58]} />
-      <ambientLight intensity={1.65} color="#fff3dd" />
+      <color attach="background" args={["#d8d9cf"]} />
+      <fog attach="fog" args={["#d8d9cf", 26, 58]} />
+      <ambientLight intensity={1.05} color="#fff2df" />
       <directionalLight
         position={[-8, 14, 11]}
-        intensity={3.2}
-        color="#fff1d6"
+        intensity={2.35}
+        color="#fff0d8"
         castShadow
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
@@ -566,15 +603,31 @@ function SceneContents({ progressRef, activeStage }: HouseSceneProps) {
         shadow-camera-top={16}
         shadow-camera-bottom={-12}
       />
-      <directionalLight position={[8, 9, -10]} intensity={1.25} color="#dae7dc" />
+      <directionalLight position={[8, 9, -10]} intensity={0.75} color="#e1e7d8" />
       <HouseArchitecture doorRef={doorRef} wallRefs={wallRefs} />
-      <CameraJourney progressRef={progressRef} doorRef={doorRef} />
+      <CameraJourney
+        progressRef={progressRef}
+        stageProgress={stageProgress}
+        reducedMotion={reducedMotion}
+        doorRef={doorRef}
+      />
       {activeStage === 2 && (
         <WallPanel
           panel="welcome"
           wallRefs={wallRefs}
           eyebrow="01 / A warm welcome"
           title={<>Good work<br />starts with<br />a feeling.</>}
+          media={(
+            <figure className="panel-photograph">
+              <img
+                src="/images/fieldhouse-interior.jpg"
+                alt="A calm contemporary interior with stone flooring and warm oak paneling."
+                loading="lazy"
+                decoding="async"
+              />
+              <figcaption>Material notes / stone · oak · light</figcaption>
+            </figure>
+          )}
         >
           <p>We make places, identities, and digital experiences with warmth, purpose, and a point of view.</p>
           <span className="panel-mark" aria-hidden="true">F—01</span>
@@ -599,9 +652,9 @@ function SceneContents({ progressRef, activeStage }: HouseSceneProps) {
           title={<>From first sketch<br />to final detail.</>}
         >
           <ul className="service-list">
-            <li>Brand &amp; identity</li>
-            <li>Places &amp; spaces</li>
-            <li>Digital experiences</li>
+            <li><span>01</span>Brand &amp; identity</li>
+            <li><span>02</span>Places &amp; spaces</li>
+            <li><span>03</span>Digital experiences</li>
           </ul>
           <span className="panel-mark" aria-hidden="true">A GOOD PLACE TO BEGIN</span>
         </WallPanel>
@@ -633,12 +686,13 @@ function SceneContents({ progressRef, activeStage }: HouseSceneProps) {
   );
 }
 
-export function HouseScene({ progressRef, activeStage }: HouseSceneProps) {
+export function HouseScene({ progressRef, activeStage, stageProgress, reducedMotion }: HouseSceneProps) {
   return (
     <div className="three-scene" aria-label="An interactive three-dimensional house">
-      <Canvas
-        shadows
-        dpr={[1, 1.5]}
+      <SceneErrorBoundary>
+        <Canvas
+        shadows="percentage"
+        dpr={[1, 1.4]}
         camera={{ position: [9, 7.4, 20], fov: 41, near: 0.1, far: 100 }}
         gl={{ antialias: true, powerPreference: "high-performance" }}
         fallback={
@@ -656,8 +710,9 @@ export function HouseScene({ progressRef, activeStage }: HouseSceneProps) {
           </div>
         }
       >
-        <SceneContents progressRef={progressRef} activeStage={activeStage} />
-      </Canvas>
+          <SceneContents progressRef={progressRef} activeStage={activeStage} stageProgress={stageProgress} reducedMotion={reducedMotion} />
+        </Canvas>
+      </SceneErrorBoundary>
     </div>
   );
 }
