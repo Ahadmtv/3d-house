@@ -64,10 +64,10 @@ const WALL_MOUNTS = {
 
 const PANEL_LAYOUTS = {
   welcome: { widths: [360, 300, 264], heights: [430, 420, 390] },
-  about: { widths: [340, 300, 264], heights: [390, 350, 315] },
-  services: { widths: [360, 300, 264], heights: [390, 350, 315] },
-  work: { widths: [325, 300, 264], heights: [350, 330, 300] },
-  contact: { widths: [300, 300, 286], heights: [390, 350, 315] },
+  about: { widths: [340, 300, 264], heights: [460, 440, 420] },
+  services: { widths: [360, 300, 264], heights: [480, 450, 430] },
+  work: { widths: [325, 300, 264], heights: [400, 380, 360] },
+  contact: { widths: [300, 300, 286], heights: [520, 490, 470] },
 } as const;
 
 const PANEL_DISTANCE_FACTOR = 2.5;
@@ -153,15 +153,31 @@ class SceneErrorBoundary extends Component<{ children: ReactNode }, SceneErrorBo
     if (this.state.hasError) {
       return (
         <div className="scene-fallback" role="status">
-          <p className="eyebrow">A simpler way in</p>
-          <h2>Good work starts with a feeling.</h2>
-          <p>
-            The 3D view isn’t available here. Fieldhouse brings strategy, design,
-            and craft together to make places, identities, and digital experiences.
-          </p>
-          <a className="contact-link" href="mailto:hello@fieldhouse.studio">
-            hello@fieldhouse.studio
-          </a>
+          <div className="scene-fallback-copy">
+            <p className="eyebrow">A simpler way in</p>
+            <h2>Good work starts with a feeling.</h2>
+            <p>
+              The 3D view isn’t available here. Fieldhouse brings strategy, design,
+              and craft together to make places, identities, and digital experiences.
+            </p>
+            <a className="contact-link" href="mailto:hello@fieldhouse.studio">
+              hello@fieldhouse.studio
+            </a>
+          </div>
+          <div className="scene-fallback-gallery" aria-hidden="true">
+            <figure className="scene-fallback-image scene-fallback-image-main">
+              <img src="/images/editorial-reference-exterior.webp" alt="" />
+              <figcaption>Architecture / stone · timber · daylight</figcaption>
+            </figure>
+            <figure className="scene-fallback-image scene-fallback-image-garden">
+              <img src="/images/editorial-reference-courtyard.webp" alt="" />
+              <figcaption>Landscape / a quieter arrival</figcaption>
+            </figure>
+            <figure className="scene-fallback-image scene-fallback-image-entry">
+              <img src="/images/editorial-reference-entry.webp" alt="" />
+              <figcaption>Material study / vertical oak</figcaption>
+            </figure>
+          </div>
         </div>
       );
     }
@@ -206,9 +222,11 @@ function CameraJourney({ progressRef, stageProgress, reducedMotion, doorRef }: P
 function HouseArchitecture({
   doorRef,
   wallRefs,
+  reducedMotion,
 }: {
   doorRef: MutableRefObject<THREE.Group | null>;
   wallRefs: WallRefs;
+  reducedMotion: boolean;
 }) {
   const gable = useMemo(() => {
     const shape = new THREE.Shape();
@@ -309,11 +327,56 @@ function HouseArchitecture({
         <boxGeometry args={[4.3, 0.22, 0.78]} />
         <meshStandardMaterial color="#c7bead" roughness={0.86} />
       </mesh>
+      <group>
+        {[-1, 1].map((side) => (
+          <mesh key={side} position={[side * 1.65, 1.95, 7.68]} castShadow receiveShadow>
+            <boxGeometry args={[0.18, 3.9, 0.22]} />
+            <meshStandardMaterial color="#d2c8b6" roughness={0.82} />
+          </mesh>
+        ))}
+        <mesh position={[0, 4.06, 7.72]} castShadow receiveShadow>
+          <boxGeometry args={[4.15, 0.22, 1.26]} />
+          <meshStandardMaterial color="#303a35" roughness={0.66} />
+        </mesh>
+        <mesh position={[0, 3.94, 7.72]}>
+          <boxGeometry args={[3.88, 0.035, 1.05]} />
+          <meshStandardMaterial color="#8a6948" roughness={0.72} />
+        </mesh>
+      </group>
+      <group>
+        {[-1, 1].flatMap((side) =>
+          Array.from({ length: 5 }, (_, index) => (
+            <mesh
+              key={`${side}-${index}`}
+              position={[side * (1.92 + index * 0.1), 1.9, 7.15]}
+              castShadow
+            >
+              <boxGeometry args={[0.045, 3.55, 0.075]} />
+              <meshStandardMaterial color="#806347" roughness={0.7} />
+            </mesh>
+          )),
+        )}
+      </group>
+      <group>
+        {[-1, 1].map((side) => (
+          <group key={side} position={[side * 2.78, 2.8, 7.2]}>
+            <mesh castShadow>
+              <boxGeometry args={[0.18, 0.42, 0.12]} />
+              <meshStandardMaterial color="#4a5148" roughness={0.55} metalness={0.25} />
+            </mesh>
+            <mesh position={[0, 0, 0.075]}>
+              <boxGeometry args={[0.09, 0.25, 0.025]} />
+              <meshStandardMaterial color="#efd8a8" emissive="#c99a54" emissiveIntensity={0.55} />
+            </mesh>
+            <pointLight color="#efd9b3" intensity={4} distance={4.5} decay={2} />
+          </group>
+        ))}
+      </group>
       <Door ref={doorRef} />
       <DoorFrame />
       <FrontWindow position={[-3.8, 2.7, 7.17]} />
       <FrontWindow position={[3.8, 2.7, 7.17]} />
-      <HouseDetails />
+      <HouseDetails reducedMotion={reducedMotion} />
     </group>
   );
 }
@@ -450,7 +513,7 @@ function FrontWindow({ position }: { position: [number, number, number] }) {
   );
 }
 
-function HouseDetails() {
+function HouseDetails({ reducedMotion }: { reducedMotion: boolean }) {
   return (
     <group>
       <mesh position={[0, -0.445, 0]} receiveShadow castShadow>
@@ -513,11 +576,157 @@ function HouseDetails() {
         <meshStandardMaterial color="#d9bc87" emissive="#6f4820" emissiveIntensity={0.45} />
       </mesh>
       <pointLight position={[0, 4.45, -1.5]} color="#f0d9a9" intensity={26} distance={10} decay={2} />
+      <ExteriorGarden reducedMotion={reducedMotion} />
+    </group>
+  );
+}
+
+function GardenTree({
+  position,
+  reducedMotion,
+  variant = 0,
+}: {
+  position: [number, number, number];
+  reducedMotion: boolean;
+  variant?: number;
+}) {
+  const canopyRef = useRef<THREE.Group>(null);
+  const leafColors = ["#788369", "#899078", "#737c65"];
+
+  useFrame(({ clock }) => {
+    if (!canopyRef.current || reducedMotion) return;
+    canopyRef.current.rotation.z = Math.sin(clock.elapsedTime * 0.35 + variant) * 0.012;
+    canopyRef.current.rotation.x = Math.cos(clock.elapsedTime * 0.28 + variant) * 0.008;
+  });
+
+  return (
+    <group position={position}>
+      <mesh position={[0, 1.5, 0]} castShadow receiveShadow>
+        <cylinderGeometry args={[0.11, 0.19, 3, 8]} />
+        <meshStandardMaterial color="#80664d" roughness={0.92} />
+      </mesh>
+      <group ref={canopyRef} position={[0, 3.1, 0]}>
+        {[
+          [0, 0, 0, 1.15],
+          [-0.62, 0.16, 0.14, 0.72],
+          [0.58, 0.22, -0.12, 0.78],
+          [0.08, 0.55, 0.38, 0.64],
+          [-0.14, -0.34, -0.34, 0.66],
+        ].map(([x, y, z, scale], index) => (
+          <mesh
+            key={index}
+            position={[x, y, z]}
+            scale={[scale, scale * 0.76, scale * 0.82]}
+            castShadow
+          >
+            <sphereGeometry args={[1, 12, 10]} />
+            <meshStandardMaterial color={leafColors[(index + variant) % leafColors.length]} roughness={0.96} />
+          </mesh>
+        ))}
+      </group>
+    </group>
+  );
+}
+
+function GardenPlanter({ position }: { position: [number, number, number] }) {
+  return (
+    <group position={position}>
+      <mesh position={[0, 0.18, 0]} receiveShadow>
+        <boxGeometry args={[2.7, 0.48, 5.6]} />
+        <meshStandardMaterial color="#b8b0a0" roughness={0.88} />
+      </mesh>
+      <mesh position={[0, 0.43, 0]}>
+        <boxGeometry args={[2.48, 0.06, 5.36]} />
+        <meshStandardMaterial color="#514e42" roughness={1} />
+      </mesh>
+      {[-2, -1.05, -0.1, 0.85, 1.8].map((z, index) => (
+        <group key={z} position={[(index % 2 ? 0.38 : -0.38), 0.5, z]}>
+          <mesh position={[0, 0.36, 0]} castShadow>
+            <sphereGeometry args={[0.38, 12, 10]} />
+            <meshStandardMaterial color={index % 2 ? "#79836b" : "#8b937b"} roughness={0.96} />
+          </mesh>
+          {[0, 1, 2].map((blade) => (
+            <mesh key={blade} position={[(blade - 1) * 0.09, 0.53, 0]} rotation={[0, 0, (blade - 1) * 0.18]} castShadow>
+              <cylinderGeometry args={[0.018, 0.036, 0.92, 5]} />
+              <meshStandardMaterial color="#a3a78a" roughness={0.95} />
+            </mesh>
+          ))}
+        </group>
+      ))}
+    </group>
+  );
+}
+
+function GardenBollard({ position }: { position: [number, number, number] }) {
+  return (
+    <group position={position}>
+      <mesh position={[0, 0.42, 0]} castShadow>
+        <cylinderGeometry args={[0.075, 0.11, 0.84, 10]} />
+        <meshStandardMaterial color="#343d37" roughness={0.55} metalness={0.42} />
+      </mesh>
+      <mesh position={[0, 0.77, 0]}>
+        <cylinderGeometry args={[0.07, 0.07, 0.08, 10]} />
+        <meshStandardMaterial color="#f0d8a9" emissive="#d4a868" emissiveIntensity={0.5} />
+      </mesh>
+      <pointLight position={[0, 0.85, 0]} color="#f0dbb5" intensity={1.4} distance={3.8} decay={2} />
+    </group>
+  );
+}
+
+function ExteriorGarden({ reducedMotion }: { reducedMotion: boolean }) {
+  return (
+    <group>
       <mesh position={[0, -0.58, 14]} receiveShadow>
         <boxGeometry args={[200, 0.1, 200]} />
-        <meshStandardMaterial color="#aab0a1" roughness={1} />
+        <meshStandardMaterial color="#a7ad98" roughness={1} />
+      </mesh>
+      <mesh position={[0, -0.43, 8.95]} receiveShadow>
+        <boxGeometry args={[10.4, 0.18, 3.2]} />
+        <meshStandardMaterial color="#c8c0af" roughness={0.94} />
+      </mesh>
+      {Array.from({ length: 6 }, (_, index) => (
+        <mesh key={index} position={[0, -0.43, 9.3 + index * 1.38]} receiveShadow>
+          <boxGeometry args={[3.25, 0.14, 1.22]} />
+          <meshStandardMaterial color={index % 2 ? "#d4ccbd" : "#cfc7b8"} roughness={0.9} />
+        </mesh>
+      ))}
+      {[-1, 1].map((side) => (
+        <group key={side}>
+          <mesh position={[side * 11.7, -0.27, 13.3]} receiveShadow>
+            <boxGeometry args={[0.28, 0.62, 17]} />
+            <meshStandardMaterial color="#b7b19f" roughness={0.9} />
+          </mesh>
+          <GardenPlanter position={[side * 4.7, -0.48, 13.15]} />
+          <GardenTree position={[side * 8.15, -0.52, 12.8]} reducedMotion={reducedMotion} variant={side + 1} />
+          {[10.75, 14.5].map((z) => (
+            <GardenBollard key={z} position={[side * 2.18, -0.53, z]} />
+          ))}
+        </group>
+      ))}
+      <mesh position={[0, -0.505, 17.8]} receiveShadow>
+        <boxGeometry args={[18.5, 0.16, 0.24]} />
+        <meshStandardMaterial color="#b7b19f" roughness={0.9} />
       </mesh>
     </group>
+  );
+}
+
+function WallPhotograph({
+  src,
+  alt,
+  caption,
+  className = "",
+}: {
+  src: string;
+  alt: string;
+  caption?: string;
+  className?: string;
+}) {
+  return (
+    <figure className={`panel-photograph ${className}`}>
+      <img src={src} alt={alt} loading="lazy" decoding="async" />
+      {caption && <figcaption>{caption}</figcaption>}
+    </figure>
   );
 }
 
@@ -604,7 +813,7 @@ function SceneContents({ progressRef, activeStage, stageProgress, reducedMotion 
         shadow-camera-bottom={-12}
       />
       <directionalLight position={[8, 9, -10]} intensity={0.75} color="#e1e7d8" />
-      <HouseArchitecture doorRef={doorRef} wallRefs={wallRefs} />
+      <HouseArchitecture doorRef={doorRef} wallRefs={wallRefs} reducedMotion={reducedMotion} />
       <CameraJourney
         progressRef={progressRef}
         stageProgress={stageProgress}
@@ -618,15 +827,11 @@ function SceneContents({ progressRef, activeStage, stageProgress, reducedMotion 
           eyebrow="01 / A warm welcome"
           title={<>Good work<br />starts with<br />a feeling.</>}
           media={(
-            <figure className="panel-photograph">
-              <img
-                src="/images/fieldhouse-interior.jpg"
-                alt="A calm contemporary interior with stone flooring and warm oak paneling."
-                loading="lazy"
-                decoding="async"
-              />
-              <figcaption>Material notes / stone · oak · light</figcaption>
-            </figure>
+            <WallPhotograph
+              src="/images/editorial-reference-exterior.webp"
+              alt="A contemporary home with a limestone facade, timber details, and a quiet courtyard."
+              caption="Architecture reference / stone · timber · light"
+            />
           )}
         >
           <p>We make places, identities, and digital experiences with warmth, purpose, and a point of view.</p>
@@ -639,6 +844,13 @@ function SceneContents({ progressRef, activeStage, stageProgress, reducedMotion 
           wallRefs={wallRefs}
           eyebrow="02 / Our story"
           title={<>Small studio.<br />Room for<br />big ideas.</>}
+          media={(
+            <WallPhotograph
+              src="/images/editorial-reference-living-room.webp"
+              alt="A light-filled living room with tall windows, natural wood, and calm neutral materials."
+              caption="Atmosphere / daylight · material · proportion"
+            />
+          )}
         >
           <p>Fieldhouse brings strategy, design, and craft together to make work with a lasting sense of place.</p>
           <span className="panel-mark" aria-hidden="true">EST. MMXVI</span>
@@ -650,6 +862,14 @@ function SceneContents({ progressRef, activeStage, stageProgress, reducedMotion 
           wallRefs={wallRefs}
           eyebrow="03 / What we do"
           title={<>From first sketch<br />to final detail.</>}
+          media={(
+            <WallPhotograph
+              src="/images/editorial-reference-courtyard.webp"
+              alt="A spare contemporary courtyard with sculptural trees and a stone bench."
+              caption="Landscape reference / stillness · shade"
+              className="panel-photograph-compact"
+            />
+          )}
         >
           <ul className="service-list">
             <li><span>01</span>Brand &amp; identity</li>
@@ -665,6 +885,13 @@ function SceneContents({ progressRef, activeStage, stageProgress, reducedMotion 
           wallRefs={wallRefs}
           eyebrow="04 / A few good things"
           title={<>Made to<br />belong.</>}
+          media={(
+            <WallPhotograph
+              src="/images/editorial-reference-entry.webp"
+              alt="A modern residential entry with warm vertical timber fins and planted greenery."
+              caption="Entry reference / timber · planting"
+            />
+          )}
         >
           <p>From quiet neighborhood landmarks to ambitious digital homes, we make the useful feel unforgettable.</p>
           <a className="panel-link" href="mailto:hello@fieldhouse.studio?subject=Selected%20work">Ask us about our work <span aria-hidden="true">↗</span></a>
@@ -676,6 +903,14 @@ function SceneContents({ progressRef, activeStage, stageProgress, reducedMotion 
           wallRefs={wallRefs}
           eyebrow="05 / Come say hello"
           title={<>There’s room<br />for what’s<br />next.</>}
+          media={(
+            <WallPhotograph
+              src="/images/editorial-reference-interior.webp"
+              alt="An understated interior hallway with limestone flooring and a warm oak feature wall."
+              caption="Material notes / limestone · oak"
+              className="panel-photograph-compact"
+            />
+          )}
         >
           <p>Tell us what you’re imagining. We’d love to hear about it.</p>
           <a className="panel-link" href="mailto:hello@fieldhouse.studio">hello@fieldhouse.studio <span aria-hidden="true">↗</span></a>
