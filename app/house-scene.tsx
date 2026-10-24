@@ -1,10 +1,11 @@
 "use client";
 
-import { Html, Sky, useTexture } from "@react-three/drei";
+import Image from "next/image";
+import { Html, useTexture } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Component, useLayoutEffect, useMemo, useRef } from "react";
+import { Component, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
-import type { MutableRefObject, ReactNode, RefObject } from "react";
+import type { MutableRefObject, ReactNode } from "react";
 
 const HOUSE = {
   width: 10,
@@ -33,46 +34,36 @@ const WALL_MOUNTS = {
   welcome: {
     wall: "back",
     wallPosition: [0, 0, HOUSE.backZ] as [number, number, number],
-    position: [0, 2.6, HOUSE.wallThickness / 2 + 0.04] as [number, number, number],
+    position: [0, 2.6, HOUSE.wallThickness / 2 + 0.006] as [number, number, number],
     rotation: 0,
   },
   about: {
     wall: "left",
     wallPosition: [-HOUSE.sideX, 0, 0] as [number, number, number],
-    position: [HOUSE.wallThickness / 2 + 0.04, 2.6, -2.75] as [number, number, number],
+    position: [HOUSE.wallThickness / 2 + 0.006, 2.6, -2.75] as [number, number, number],
     rotation: Math.PI / 2,
   },
   services: {
     wall: "right",
     wallPosition: [HOUSE.sideX, 0, 0] as [number, number, number],
-    position: [-HOUSE.wallThickness / 2 - 0.04, 2.6, -3.35] as [number, number, number],
+    position: [-HOUSE.wallThickness / 2 - 0.006, 2.6, -3.35] as [number, number, number],
     rotation: -Math.PI / 2,
   },
   work: {
     wall: "right",
     wallPosition: [HOUSE.sideX, 0, 0] as [number, number, number],
-    position: [-HOUSE.wallThickness / 2 - 0.04, 2.6, 0.65] as [number, number, number],
+    position: [-HOUSE.wallThickness / 2 - 0.006, 2.6, 0.65] as [number, number, number],
     rotation: -Math.PI / 2,
   },
   contact: {
     wall: "back",
     wallPosition: [3.45, 0, HOUSE.backZ] as [number, number, number],
-    position: [0, 2.6, HOUSE.wallThickness / 2 + 0.04] as [number, number, number],
+    position: [0, 2.6, HOUSE.wallThickness / 2 + 0.006] as [number, number, number],
     rotation: 0,
   },
 } as const;
 
-const PANEL_LAYOUTS = {
-  welcome: { widths: [360, 300, 264], heights: [430, 420, 390] },
-  about: { widths: [340, 300, 264], heights: [460, 440, 420] },
-  services: { widths: [360, 300, 264], heights: [480, 450, 430] },
-  work: { widths: [325, 300, 264], heights: [400, 380, 360] },
-  contact: { widths: [300, 300, 286], heights: [520, 490, 470] },
-} as const;
-
 const PANEL_DISTANCE_FACTOR = 2.5;
-
-type WallRefs = Record<"back" | "left" | "right", MutableRefObject<THREE.Mesh | null>>;
 
 type WaypointKey = "position" | "target";
 
@@ -138,6 +129,8 @@ type HouseSceneProps = {
   activeStage: number;
   stageProgress: number;
   reducedMotion: boolean;
+  invalidateRef: MutableRefObject<(() => void) | null>;
+  onNavigateStage: (nextStage: number) => void;
 };
 
 type SceneErrorBoundaryState = { hasError: boolean };
@@ -166,15 +159,22 @@ class SceneErrorBoundary extends Component<{ children: ReactNode }, SceneErrorBo
           </div>
           <div className="scene-fallback-gallery" aria-hidden="true">
             <figure className="scene-fallback-image scene-fallback-image-main">
-              <img src="/images/editorial-reference-exterior.webp" alt="" />
+              <Image
+                src="/images/editorial-reference-exterior.webp"
+                alt=""
+                width={1200}
+                height={800}
+                sizes="(max-width: 800px) 88vw, 52vw"
+                loading="eager"
+              />
               <figcaption>Architecture / stone · timber · daylight</figcaption>
             </figure>
             <figure className="scene-fallback-image scene-fallback-image-garden">
-              <img src="/images/editorial-reference-courtyard.webp" alt="" />
+              <Image src="/images/editorial-reference-courtyard.webp" alt="" width={1200} height={800} sizes="(max-width: 800px) 88vw, 38vw" />
               <figcaption>Landscape / a quieter arrival</figcaption>
             </figure>
             <figure className="scene-fallback-image scene-fallback-image-entry">
-              <img src="/images/editorial-reference-entry.webp" alt="" />
+              <Image src="/images/editorial-reference-entry.webp" alt="" width={1200} height={600} sizes="(max-width: 800px) 88vw, 38vw" />
               <figcaption>Material study / vertical oak</figcaption>
             </figure>
           </div>
@@ -252,14 +252,8 @@ function StandingSeamRoof({ position, rotation }: { position: [number, number, n
   );
 }
 
-function HouseArchitecture({
-  doorRef,
-  wallRefs,
-  reducedMotion,
-}: {
+function HouseArchitecture({ doorRef }: {
   doorRef: MutableRefObject<THREE.Group | null>;
-  wallRefs: WallRefs;
-  reducedMotion: boolean;
 }) {
   const [
     sidingTexture,
@@ -292,7 +286,7 @@ function HouseArchitecture({
     const colorTextures = [sidingTexture, oakTexture, stoneTexture, lawnTexture];
     const normalTextures = [sidingNormal, oakNormal, stoneNormal];
     for (const texture of [...colorTextures, ...normalTextures]) {
-      texture.anisotropy = Math.min(8, gl.capabilities.getMaxAnisotropy());
+      texture.anisotropy = Math.min(4, gl.capabilities.getMaxAnisotropy());
       texture.wrapS = THREE.RepeatWrapping;
       texture.wrapT = THREE.RepeatWrapping;
     }
@@ -311,15 +305,15 @@ function HouseArchitecture({
         <boxGeometry args={[HOUSE.width + HOUSE.wallThickness, 0.53, HOUSE.depth + HOUSE.wallThickness]} />
         <meshStandardMaterial color="#a59b89" map={stoneTexture} normalMap={stoneNormal} normalScale={[0.16, 0.16]} roughness={0.94} />
       </mesh>
-      <mesh ref={wallRefs.back} position={[0, HOUSE.wallHeight / 2, HOUSE.backZ]} receiveShadow>
+      <mesh position={[0, HOUSE.wallHeight / 2, HOUSE.backZ]} receiveShadow>
         <boxGeometry args={[HOUSE.width, HOUSE.wallHeight, HOUSE.wallThickness]} />
         <meshStandardMaterial color="#ebe4d7" map={sidingTexture} normalMap={sidingNormal} normalScale={[0.18, 0.18]} roughness={0.82} />
       </mesh>
-      <mesh ref={wallRefs.left} position={[-HOUSE.sideX, HOUSE.wallHeight / 2, 0]} receiveShadow>
+      <mesh position={[-HOUSE.sideX, HOUSE.wallHeight / 2, 0]} receiveShadow>
         <boxGeometry args={[HOUSE.wallThickness, HOUSE.wallHeight, HOUSE.depth]} />
         <meshStandardMaterial color="#e8e0d2" map={sidingTexture} normalMap={sidingNormal} normalScale={[0.18, 0.18]} roughness={0.86} />
       </mesh>
-      <mesh ref={wallRefs.right} position={[HOUSE.sideX, HOUSE.wallHeight / 2, 0]} receiveShadow>
+      <mesh position={[HOUSE.sideX, HOUSE.wallHeight / 2, 0]} receiveShadow>
         <boxGeometry args={[HOUSE.wallThickness, HOUSE.wallHeight, HOUSE.depth]} />
         <meshStandardMaterial color="#e8e0d2" map={sidingTexture} normalMap={sidingNormal} normalScale={[0.18, 0.18]} roughness={0.86} />
       </mesh>
@@ -442,8 +436,7 @@ function HouseArchitecture({
               <boxGeometry args={[0.09, 0.25, 0.025]} />
               <meshStandardMaterial color="#efd8a8" emissive="#c99a54" emissiveIntensity={0.55} />
             </mesh>
-            <pointLight color="#efd9b3" intensity={4} distance={4.5} decay={2} />
-          </group>
+            </group>
         ))}
       </group>
       <Door ref={doorRef} oakTexture={oakTexture} oakNormal={oakNormal} />
@@ -451,7 +444,6 @@ function HouseArchitecture({
       <FrontWindow position={[-3.8, 2.7, 7.17]} oakTexture={oakTexture} oakNormal={oakNormal} />
       <FrontWindow position={[3.8, 2.7, 7.17]} oakTexture={oakTexture} oakNormal={oakNormal} />
       <HouseDetails
-        reducedMotion={reducedMotion}
         oakTexture={oakTexture}
         oakNormal={oakNormal}
         stoneTexture={stoneTexture}
@@ -620,8 +612,7 @@ function FrontWindow({ position, oakTexture, oakNormal }: {
   );
 }
 
-function HouseDetails({ reducedMotion, oakTexture, oakNormal, stoneTexture, stoneNormal, lawnTexture }: {
-  reducedMotion: boolean;
+function HouseDetails({ oakTexture, oakNormal, stoneTexture, stoneNormal, lawnTexture }: {
   oakTexture: THREE.Texture;
   oakNormal: THREE.Texture;
   stoneTexture: THREE.Texture;
@@ -689,29 +680,19 @@ function HouseDetails({ reducedMotion, oakTexture, oakNormal, stoneTexture, ston
         <sphereGeometry args={[0.16, 20, 20]} />
         <meshStandardMaterial color="#d9bc87" emissive="#6f4820" emissiveIntensity={0.45} />
       </mesh>
-      <pointLight position={[0, 4.45, -1.5]} color="#f0d9a9" intensity={26} distance={10} decay={2} />
-      <ExteriorGarden reducedMotion={reducedMotion} stoneTexture={stoneTexture} stoneNormal={stoneNormal} lawnTexture={lawnTexture} />
+      <ExteriorGarden stoneTexture={stoneTexture} stoneNormal={stoneNormal} lawnTexture={lawnTexture} />
     </group>
   );
 }
 
 function GardenTree({
   position,
-  reducedMotion,
   variant = 0,
 }: {
   position: [number, number, number];
-  reducedMotion: boolean;
   variant?: number;
 }) {
-  const canopyRef = useRef<THREE.Group>(null);
   const leafColors = ["#788369", "#899078", "#737c65"];
-
-  useFrame(({ clock }) => {
-    if (!canopyRef.current || reducedMotion) return;
-    canopyRef.current.rotation.z = Math.sin(clock.elapsedTime * 0.35 + variant) * 0.012;
-    canopyRef.current.rotation.x = Math.cos(clock.elapsedTime * 0.28 + variant) * 0.008;
-  });
 
   return (
     <group position={position}>
@@ -731,7 +712,7 @@ function GardenTree({
         <cylinderGeometry args={[0.11, 0.19, 3, 8]} />
         <meshStandardMaterial color="#80664d" roughness={0.92} />
       </mesh>
-      <group ref={canopyRef} position={[0, 3.1, 0]}>
+      <group position={[0, 3.1, 0]}>
         {[
           [0, 0, 0, 1.15],
           [-0.62, 0.16, 0.14, 0.72],
@@ -798,13 +779,11 @@ function GardenBollard({ position }: { position: [number, number, number] }) {
         <cylinderGeometry args={[0.07, 0.07, 0.08, 10]} />
         <meshStandardMaterial color="#f0d8a9" emissive="#d4a868" emissiveIntensity={0.5} />
       </mesh>
-      <pointLight position={[0, 0.85, 0]} color="#f0dbb5" intensity={1.4} distance={3.8} decay={2} />
     </group>
   );
 }
 
-function ExteriorGarden({ reducedMotion, stoneTexture, stoneNormal, lawnTexture }: {
-  reducedMotion: boolean;
+function ExteriorGarden({ stoneTexture, stoneNormal, lawnTexture }: {
   stoneTexture: THREE.Texture;
   stoneNormal: THREE.Texture;
   lawnTexture: THREE.Texture;
@@ -832,7 +811,7 @@ function ExteriorGarden({ reducedMotion, stoneTexture, stoneNormal, lawnTexture 
             <meshStandardMaterial color="#b7b19f" map={stoneTexture} normalMap={stoneNormal} normalScale={[0.12, 0.12]} roughness={0.9} />
           </mesh>
           <GardenPlanter position={[side * 6.15, -0.48, 13.15]} stoneTexture={stoneTexture} stoneNormal={stoneNormal} />
-          <GardenTree position={[side * 6.15, -0.52, 12.8]} reducedMotion={reducedMotion} variant={side + 1} />
+          <GardenTree position={[side * 6.15, -0.52, 12.8]} variant={side + 1} />
           {[10.75, 14.5].map((z) => (
             <GardenBollard key={z} position={[side * 2.18, -0.53, z]} />
           ))}
@@ -846,20 +825,51 @@ function ExteriorGarden({ reducedMotion, stoneTexture, stoneNormal, lawnTexture 
   );
 }
 
+const WALL_PHOTOS = {
+  "/images/editorial-reference-exterior.webp": [1200, 800],
+  "/images/editorial-reference-living-room.webp": [1200, 800],
+  "/images/editorial-reference-courtyard.webp": [1200, 800],
+  "/images/editorial-reference-entry.webp": [1200, 600],
+  "/images/editorial-reference-interior.webp": [1200, 900],
+} as const;
+
 function WallPhotograph({
   src,
   alt,
   caption,
   className = "",
 }: {
-  src: string;
+  src: keyof typeof WALL_PHOTOS;
   alt: string;
   caption?: string;
   className?: string;
 }) {
+  const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const [width, height] = WALL_PHOTOS[src];
+
   return (
-    <figure className={`panel-photograph ${className}`}>
-      <img src={src} alt={alt} loading="lazy" decoding="async" />
+    <figure className={`panel-photograph ${className}`} data-image-state={failed ? "failed" : loaded ? "loaded" : "loading"}>
+      {failed ? (
+        <div className="panel-photo-fallback" role="img" aria-label={alt}>
+          <span aria-hidden="true">Image unavailable</span>
+        </div>
+      ) : (
+        <Image
+          src={src}
+          alt={alt}
+          width={width}
+          height={height}
+          sizes="(max-width: 540px) 230px, (max-width: 800px) 260px, 312px"
+          loading="eager"
+          decoding="async"
+          onLoad={({ currentTarget }) => {
+            const image = currentTarget;
+            void image.decode().then(() => setLoaded(true), () => setFailed(true));
+          }}
+          onError={() => setFailed(true)}
+        />
+      )}
       {caption && <figcaption>{caption}</figcaption>}
     </figure>
   );
@@ -871,49 +881,78 @@ function WallPanel({
   title,
   children,
   media,
-  wallRefs,
+  pageIndex,
+  progressRef,
+  revealRange,
+  onNavigateStage,
 }: {
   panel: keyof typeof WALL_MOUNTS;
   eyebrow: string;
   title: ReactNode;
   children: ReactNode;
   media?: ReactNode;
-  wallRefs: WallRefs;
+  pageIndex: number;
+  progressRef: MutableRefObject<number>;
+  revealRange: [number, number];
+  onNavigateStage: (nextStage: number) => void;
 }) {
-  const { size } = useThree();
   const mount = WALL_MOUNTS[panel];
-  const layout = PANEL_LAYOUTS[panel];
-  const breakpoint = size.width < 540 ? 2 : size.width < 800 ? 1 : 0;
-  const contentWidth = layout.widths[breakpoint] * PANEL_DISTANCE_FACTOR / 400;
-  const contentHeight = layout.heights[breakpoint] * PANEL_DISTANCE_FACTOR / 400;
-  const frameWidth = contentWidth + 0.31;
-  const frameHeight = contentHeight + 0.28;
-  const matWidth = contentWidth + 0.19;
-  const matHeight = contentHeight + 0.16;
+  const articleRef = useRef<HTMLElement>(null);
+  const hiddenStateRef = useRef<boolean | null>(null);
+  const visibleStateRef = useRef<boolean | null>(null);
+
+  useFrame(() => {
+    const article = articleRef.current;
+    if (!article) return;
+
+    const [start, end] = revealRange;
+    const fadeDuration = Math.min(0.035, (end - start) / 3);
+    const progress = progressRef.current;
+    const opacity = THREE.MathUtils.smoothstep(progress, start, start + fadeDuration)
+      * (1 - THREE.MathUtils.smoothstep(progress, end - fadeDuration, end));
+    const hidden = opacity < 0.95;
+    article.style.opacity = String(opacity);
+    article.style.transform = `translateY(${(1 - opacity) * 10}px)`;
+    if (hiddenStateRef.current !== hidden) {
+      article.style.pointerEvents = hidden ? "none" : "auto";
+      article.inert = hidden;
+      article.setAttribute("aria-hidden", String(hidden));
+      hiddenStateRef.current = hidden;
+    }
+    const visible = opacity >= 0.01;
+    if (visibleStateRef.current !== visible) {
+      article.style.visibility = visible ? "visible" : "hidden";
+      visibleStateRef.current = visible;
+    }
+  });
 
   return (
     <group position={mount.wallPosition}>
       <group position={mount.position} rotation={[0, mount.rotation, 0]}>
-        <mesh position={[0, 0, -0.04]} castShadow receiveShadow>
-          <boxGeometry args={[frameWidth, frameHeight, 0.07]} />
-          <meshStandardMaterial color="#98764e" roughness={0.62} metalness={0.16} />
-        </mesh>
-        <mesh position={[0, 0, 0.002]}>
-          <boxGeometry args={[matWidth, matHeight, 0.018]} />
-          <meshStandardMaterial color="#d9d1c1" roughness={0.88} />
-        </mesh>
         <Html
           transform
           position={[0, 0, 0.014]}
           distanceFactor={PANEL_DISTANCE_FACTOR}
-          occlude={[wallRefs[mount.wall] as unknown as RefObject<THREE.Object3D>]}
           zIndexRange={[10, 0]}
         >
-          <article className={`wall-panel panel-${panel}`}>
-            <p className="panel-eyebrow">{eyebrow}</p>
-            {media}
-            <h2>{title}</h2>
-            {children}
+          <article ref={articleRef} className={`wall-panel panel-${panel}`} aria-hidden="true" inert>
+            <header className="wall-site-header">
+              <a className="wall-site-brand" href="#story-content" aria-label="Fieldhouse home">
+                <span aria-hidden="true">F</span>
+                <span>FIELDHOUSE<small>INDEPENDENT STUDIO</small></span>
+              </a>
+              <nav className="wall-page-nav" aria-label="Fieldhouse pages">
+                <span>{String(pageIndex + 1).padStart(2, "0")} <i>/</i> 05</span>
+                <button type="button" onClick={() => onNavigateStage(pageIndex + 1)} disabled={pageIndex === 0} aria-label="Previous page">←</button>
+                <button type="button" onClick={() => onNavigateStage(pageIndex + 3)} disabled={pageIndex === 4} aria-label="Next page">→</button>
+              </nav>
+            </header>
+            <div className="wall-site-content">
+              <p className="panel-eyebrow">{eyebrow}</p>
+              {media}
+              <h2>{title}</h2>
+              {children}
+            </div>
           </article>
         </Html>
       </group>
@@ -921,19 +960,12 @@ function WallPanel({
   );
 }
 
-function SceneContents({ progressRef, activeStage, stageProgress, reducedMotion }: HouseSceneProps) {
+function SceneContents({ progressRef, activeStage, stageProgress, reducedMotion, onNavigateStage }: Omit<HouseSceneProps, "invalidateRef">) {
   const doorRef = useRef<THREE.Group | null>(null);
-  const wallRefs: WallRefs = {
-    back: useRef<THREE.Mesh | null>(null),
-    left: useRef<THREE.Mesh | null>(null),
-    right: useRef<THREE.Mesh | null>(null),
-  };
 
   return (
     <>
-      <color attach="background" args={["#e0d4c0"]} />
-      <fog attach="fog" args={["#e0d4c0", 40, 96]} />
-      <Sky distance={450000} sunPosition={[0.8, 0.55, 0.3]} turbidity={7} rayleigh={1.7} />
+      <fog attach="fog" args={["#d8d9cf", 40, 96]} />
       <hemisphereLight args={["#fff5e4", "#8e8778", 0.72]} />
       <directionalLight
         position={[-8, 14, 11]}
@@ -949,17 +981,20 @@ function SceneContents({ progressRef, activeStage, stageProgress, reducedMotion 
         shadow-camera-bottom={-12}
       />
       <directionalLight position={[8, 9, -10]} intensity={0.62} color="#e3e3d6" />
-      <HouseArchitecture doorRef={doorRef} wallRefs={wallRefs} reducedMotion={reducedMotion} />
+      <HouseArchitecture doorRef={doorRef} />
       <CameraJourney
         progressRef={progressRef}
         stageProgress={stageProgress}
         reducedMotion={reducedMotion}
         doorRef={doorRef}
       />
-      {activeStage === 2 && (
+      {activeStage >= 1 && activeStage <= 3 && (
         <WallPanel
           panel="welcome"
-          wallRefs={wallRefs}
+          pageIndex={0}
+          progressRef={progressRef}
+          revealRange={[0.255, 0.445]}
+          onNavigateStage={onNavigateStage}
           eyebrow="01 / A warm welcome"
           title={<>Good work<br />starts with<br />a feeling.</>}
           media={(
@@ -974,10 +1009,13 @@ function SceneContents({ progressRef, activeStage, stageProgress, reducedMotion 
           <span className="panel-mark" aria-hidden="true">F—01</span>
         </WallPanel>
       )}
-      {activeStage === 3 && (
+      {activeStage >= 2 && activeStage <= 4 && (
         <WallPanel
           panel="about"
-          wallRefs={wallRefs}
+          pageIndex={1}
+          progressRef={progressRef}
+          revealRange={[0.405, 0.595]}
+          onNavigateStage={onNavigateStage}
           eyebrow="02 / Our story"
           title={<>Small studio.<br />Room for<br />big ideas.</>}
           media={(
@@ -992,10 +1030,13 @@ function SceneContents({ progressRef, activeStage, stageProgress, reducedMotion 
           <span className="panel-mark" aria-hidden="true">EST. MMXVI</span>
         </WallPanel>
       )}
-      {activeStage === 4 && (
+      {activeStage >= 3 && activeStage <= 5 && (
         <WallPanel
           panel="services"
-          wallRefs={wallRefs}
+          pageIndex={2}
+          progressRef={progressRef}
+          revealRange={[0.555, 0.745]}
+          onNavigateStage={onNavigateStage}
           eyebrow="03 / What we do"
           title={<>From first sketch<br />to final detail.</>}
           media={(
@@ -1015,10 +1056,13 @@ function SceneContents({ progressRef, activeStage, stageProgress, reducedMotion 
           <span className="panel-mark" aria-hidden="true">A GOOD PLACE TO BEGIN</span>
         </WallPanel>
       )}
-      {activeStage === 5 && (
+      {activeStage >= 4 && activeStage <= 6 && (
         <WallPanel
           panel="work"
-          wallRefs={wallRefs}
+          pageIndex={3}
+          progressRef={progressRef}
+          revealRange={[0.705, 0.895]}
+          onNavigateStage={onNavigateStage}
           eyebrow="04 / A few good things"
           title={<>Made to<br />belong.</>}
           media={(
@@ -1033,10 +1077,13 @@ function SceneContents({ progressRef, activeStage, stageProgress, reducedMotion 
           <a className="panel-link" href="mailto:hello@fieldhouse.studio?subject=Selected%20work">Ask us about our work <span aria-hidden="true">↗</span></a>
         </WallPanel>
       )}
-      {activeStage === 6 && (
+      {activeStage >= 5 && (
         <WallPanel
           panel="contact"
-          wallRefs={wallRefs}
+          pageIndex={4}
+          progressRef={progressRef}
+          revealRange={[0.855, 1.2]}
+          onNavigateStage={onNavigateStage}
           eyebrow="05 / Come say hello"
           title={<>There’s room<br />for what’s<br />next.</>}
           media={(
@@ -1057,19 +1104,30 @@ function SceneContents({ progressRef, activeStage, stageProgress, reducedMotion 
   );
 }
 
-export function HouseScene({ progressRef, activeStage, stageProgress, reducedMotion }: HouseSceneProps) {
+export function HouseScene({ progressRef, activeStage, stageProgress, reducedMotion, invalidateRef, onNavigateStage }: HouseSceneProps) {
+  const [constrainedDevice] = useState(() => {
+    if (typeof navigator === "undefined") return false;
+    const deviceMemory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
+    return navigator.hardwareConcurrency <= 4 || (deviceMemory !== undefined && deviceMemory <= 4);
+  });
+
   return (
     <div className="three-scene" aria-label="An interactive three-dimensional house">
       <SceneErrorBoundary>
         <Canvas
-        shadows="percentage"
-        dpr={[1, 1.4]}
+        frameloop="demand"
+        shadows={constrainedDevice ? false : "percentage"}
+        dpr={constrainedDevice ? 1 : [1, 1.35]}
         camera={{ position: [9, 7.4, 20], fov: 41, near: 0.1, far: 100 }}
         gl={{
-          antialias: true,
-          powerPreference: "high-performance",
+          antialias: !constrainedDevice,
+          powerPreference: constrainedDevice ? "low-power" : "high-performance",
           toneMapping: THREE.ACESFilmicToneMapping,
           toneMappingExposure: 1.05,
+        }}
+        onCreated={({ invalidate }) => {
+          invalidateRef.current = invalidate;
+          invalidate();
         }}
         fallback={
           <div className="scene-fallback">
@@ -1086,7 +1144,13 @@ export function HouseScene({ progressRef, activeStage, stageProgress, reducedMot
           </div>
         }
       >
-          <SceneContents progressRef={progressRef} activeStage={activeStage} stageProgress={stageProgress} reducedMotion={reducedMotion} />
+          <SceneContents
+            progressRef={progressRef}
+            activeStage={activeStage}
+            stageProgress={stageProgress}
+            reducedMotion={reducedMotion}
+            onNavigateStage={onNavigateStage}
+          />
         </Canvas>
       </SceneErrorBoundary>
     </div>

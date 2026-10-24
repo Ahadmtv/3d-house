@@ -27,6 +27,7 @@ function stageForProgress(progress: number) {
 
 export function HouseExperience() {
   const progressRef = useRef(0);
+  const invalidateSceneRef = useRef<(() => void) | null>(null);
   const [activeStage, setActiveStage] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(false);
 
@@ -49,6 +50,7 @@ export function HouseExperience() {
         const progress = scrollableDistance > 0 ? window.scrollY / scrollableDistance : 0;
         const nextProgress = Math.min(1, Math.max(0, progress));
         progressRef.current = nextProgress;
+        invalidateSceneRef.current?.();
         setActiveStage((current) => {
           const nextStage = stageForProgress(nextProgress);
           return current === nextStage ? current : nextStage;
@@ -90,6 +92,8 @@ export function HouseExperience() {
             activeStage={activeStage}
             stageProgress={stage.progress}
             reducedMotion={reducedMotion}
+            invalidateRef={invalidateSceneRef}
+            onNavigateStage={moveToStage}
           />
           <header className="experience-header">
             <a className="wordmark" href="#story-content" aria-label="Fieldhouse home">
