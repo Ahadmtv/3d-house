@@ -253,17 +253,6 @@ export function HouseExperience() {
               onNext={onNext}
               onJump={jumpTo}
             />
-            <header className="experience-header">
-              <a className="wordmark" href="#story-content" aria-label="Fieldhouse home">
-                <span className="wordmark-symbol" aria-hidden="true">F</span>
-                <span>FIELDHOUSE</span>
-              </a>
-              <p className="chapter-status" aria-live="polite">
-                <span>{SCENE_STAGES[activeStage].number}</span>
-                <span className="chapter-divider" aria-hidden="true">/</span>
-                {SCENE_STAGES[activeStage].label}
-              </p>
-            </header>
             <div className={`landing-copy${activeStage > 1 ? " landing-copy-hidden" : ""}`}>
               <p className="eyebrow">Independent creative studio · Est. 2016</p>
               <h1>A home for<br />good ideas.</h1>
