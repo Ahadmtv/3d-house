@@ -408,7 +408,6 @@ a:focus-visible {
 .stage--in .fx-vig-out { opacity: 0; }
 .stage--in .fx-vig-in { opacity: 1; }
 
-.experience-header,
 .landing-copy,
 .scroll-cue,
 .journey-progress,
@@ -471,20 +470,6 @@ a:focus-visible {
   line-height: 1.6;
 }
 
-.experience-header {
-  position: fixed;
-  z-index: 5;
-  top: 0;
-  left: 0;
-  display: flex;
-  width: 100%;
-  align-items: center;
-  justify-content: space-between;
-  padding: 29px 5.2vw;
-  color: #273831;
-  pointer-events: none;
-}
-
 .wordmark {
   display: inline-flex;
   align-items: center;
@@ -507,25 +492,6 @@ a:focus-visible {
   font-size: 17px;
   font-weight: 400;
   letter-spacing: 0;
-}
-
-.chapter-status {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 0;
-  color: #42544b;
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.chapter-status > span:first-child {
-  color: #8d6745;
-}
-
-.chapter-divider {
-  color: rgba(36, 53, 47, 0.35);
 }
 
 .landing-copy {
@@ -774,10 +740,6 @@ a:focus-visible {
 }
 
 @media (max-width: 800px) {
-  .experience-header {
-    padding: 20px 6vw;
-  }
-
   .landing-copy {
     top: 13%;
     left: 7vw;
@@ -824,10 +786,6 @@ a:focus-visible {
     gap: 7px;
     font-size: 8px;
     letter-spacing: 0.1em;
-  }
-
-  .experience-header {
-    padding: 17px 5vw;
   }
 
   .wordmark {
@@ -1149,14 +1107,17 @@ a:focus-visible {
 .hud__top {
   position: absolute;
   inset: 0 0 auto;
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
   align-items: center;
-  justify-content: space-between;
   padding: 34px var(--pad-x);
 }
 
 .hud__brand {
   display: flex;
+  grid-column: 1;
+  grid-row: 1;
   align-items: center;
   gap: 14px;
 }
@@ -1176,6 +1137,8 @@ a:focus-visible {
 
 .hud__nav {
   display: flex;
+  grid-column: 2;
+  grid-row: 1;
   align-items: center;
   gap: 40px;
   font-size: 12px;
@@ -1196,15 +1159,11 @@ a:focus-visible {
 .hud--in .hud__nav button { pointer-events: none; }
 
 .hud__chapter {
-  position: absolute;
-  top: 50%;
-  right: var(--pad-x);
-  transform: translateY(-50%);
-  opacity: 0;
-  transition: opacity 0.5s ease;
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: end;
+  margin-top: 10px;
 }
-
-.hud--in .hud__chapter { opacity: 1; }
 
 .hero {
   position: absolute;
