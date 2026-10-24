@@ -1,0 +1,19 @@
+export const BONE = "#F3EEE3";
+export const SAND = "#E9DFCB";
+export const PAPER = "#F5F0E5";
+export const TRAVERTINE = "#D9CCB0";
+export const MAT = "#D5C6A6";
+export const OAK = "#B08B60";
+export const OAK_DARK = "#5A3A22";
+export const UMBER = "#2A211A";
+export const CHARCOAL = "#1B1B19";
+export const OLIVE = "#6E7355";
+export const BRASS = "#B8975E";
+export const GLOW = "#F2C47C";
+export const GOLD_UI = "#E3C48A";
+export const INK = "#1B1B19";
+export const INK_SOFT = "#4A4232";
+export const INK_ACCENT = "#6B5630";
+export const WORDMARK = "#DDD1B8";
+
+export const W = 10;

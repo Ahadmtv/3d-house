@@ -1,7 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import Hud from "./hud";
 
 const HouseScene = dynamic(
   () => import("./house-scene").then((module) => module.HouseScene),
@@ -18,17 +19,36 @@ export const SCENE_STAGES = [
   { progress: 0.88, label: "Come say hello", number: "07" },
 ] as const;
 
-function stageForProgress(progress: number) {
-  for (let index = SCENE_STAGES.length - 1; index >= 0; index -= 1) {
-    if (progress >= SCENE_STAGES[index].progress) return index;
-  }
-  return 0;
-}
-
 export function HouseExperience() {
   const progressRef = useRef(0);
+  const stageVariablesRef = useRef<Record<string, number>>({});
   const [activeStage, setActiveStage] = useState(0);
+  const [inside, setInside] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
+  const [webglAvailable, setWebglAvailable] = useState(false);
+
+  const scrollToProgress = useCallback((progress: number) => {
+    const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+    window.scrollTo({ top: progress * maxScroll, behavior: reducedMotion ? "auto" : "smooth" });
+  }, [reducedMotion]);
+  const jumpTo = useCallback((index: number) => {
+    scrollToProgress(SCENE_STAGES[index]?.progress ?? 0);
+  }, [scrollToProgress]);
+  const onPrev = useCallback(() => jumpTo(Math.max(0, activeStage - 1)), [activeStage, jumpTo]);
+  const onNext = useCallback(() => jumpTo(Math.min(SCENE_STAGES.length - 1, activeStage + 1)), [activeStage, jumpTo]);
+  const updateSceneState = useCallback((nextStage: number, nextInside: boolean) => {
+    setActiveStage((current) => current === nextStage ? current : nextStage);
+    setInside((current) => current === nextInside ? current : nextInside);
+  }, []);
+
+  useEffect(() => {
+    try {
+      const canvas = document.createElement("canvas");
+      setWebglAvailable(Boolean(canvas.getContext("webgl2") || canvas.getContext("webgl")));
+    } catch {
+      setWebglAvailable(false);
+    }
+  }, []);
 
   useEffect(() => {
     const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -49,10 +69,30 @@ export function HouseExperience() {
         const progress = scrollableDistance > 0 ? window.scrollY / scrollableDistance : 0;
         const nextProgress = Math.min(1, Math.max(0, progress));
         progressRef.current = nextProgress;
-        setActiveStage((current) => {
-          const nextStage = stageForProgress(nextProgress);
-          return current === nextStage ? current : nextStage;
-        });
+        if (!webglAvailable) {
+          let nearest = 0;
+          for (let index = 1; index < SCENE_STAGES.length; index += 1) {
+            if (Math.abs(nextProgress - SCENE_STAGES[index].progress) < Math.abs(nextProgress - SCENE_STAGES[nearest].progress)) nearest = index;
+          }
+          const nextInside = nextProgress > 0.2;
+          setActiveStage((current) => current === nearest ? current : nearest);
+          setInside((current) => current === nextInside ? current : nextInside);
+          const t0 = Math.min(1, Math.max(0, nextProgress / 0.09));
+          const ease = (value: number) => value * value * (3 - 2 * value);
+          const smoothProgress = ease(t0);
+          const values = {
+            "--hero-o": 1 - ease(Math.min(1, Math.max(0, (t0 - 0.05) / 0.45))),
+            "--wm-o": 1 - ease(Math.min(1, Math.max(0, (t0 - 0.2) / 0.6))),
+            "--wm-y": -60 * smoothProgress,
+            "--wm-s": 1 + 0.06 * smoothProgress,
+          };
+          for (const [name, value] of Object.entries(values)) {
+            if (stageVariablesRef.current[name] === undefined || Math.abs(value - stageVariablesRef.current[name]) > 0.01) {
+              document.documentElement.style.setProperty(name, name === "--wm-y" ? `${value.toFixed(1)}px` : String(value));
+              stageVariablesRef.current[name] = value;
+            }
+          }
+        }
       });
     };
 
@@ -64,9 +104,25 @@ export function HouseExperience() {
       window.removeEventListener("scroll", updateProgress);
       window.removeEventListener("resize", updateProgress);
     };
-  }, []);
+  }, [webglAvailable]);
 
-  const stage = SCENE_STAGES[activeStage];
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.altKey || event.ctrlKey || event.metaKey || event.target instanceof HTMLElement && event.target.isContentEditable) return;
+      if (["INPUT", "TEXTAREA", "SELECT", "BUTTON", "A"].includes((event.target as HTMLElement)?.tagName ?? "")) return;
+      if (event.key === "ArrowDown" || event.key === "ArrowRight") {
+        event.preventDefault();
+        onNext();
+      }
+      if (event.key === "ArrowUp" || event.key === "ArrowLeft") {
+        event.preventDefault();
+        onPrev();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onNext, onPrev]);
 
   return (
     <>
@@ -76,17 +132,57 @@ export function HouseExperience() {
       <main id="story-content">
         {!reducedMotion && (
           <div className="immersive-journey">
-            <div className="scene-backdrop" aria-hidden="true" />
-            <HouseScene progressRef={progressRef} activeStage={activeStage} />
+            <div className={`stage${inside ? " stage--in" : ""}${webglAvailable ? "" : " stage--no-webgl"}`}>
+              <div className="stage__bg" aria-hidden="true" />
+              <div className="stage__wordmark" aria-hidden="true">Fieldhouse</div>
+              <div className="stage__canvas">
+                {webglAvailable && (
+                  <HouseScene
+                    progressRef={progressRef}
+                    activeStage={activeStage}
+                    inside={inside}
+                    reducedMotion={reducedMotion}
+                    onState={updateSceneState}
+                  />
+                )}
+              </div>
+              {!webglAvailable && (
+                <div className="stage__fallback-model" aria-hidden="true">
+                  <div className="fallback__plinth">
+                    <div className="fallback__house">
+                      <div className="fallback__roof" />
+                      <div className="fallback__body">
+                        <span className="fallback__window" />
+                        <span className="fallback__door" />
+                        <span className="fallback__window" />
+                      </div>
+                    </div>
+                    <span className="fallback__tree fallback__tree--left" />
+                    <span className="fallback__tree fallback__tree--right" />
+                  </div>
+                </div>
+              )}
+              <div className="fx fx-grain" aria-hidden="true" />
+              <div className="fx fx-vig-out" aria-hidden="true" />
+              <div className="fx fx-vig-in" aria-hidden="true" />
+            </div>
+            <Hud
+              stops={SCENE_STAGES.map((stop) => ({ id: stop.label, title: stop.label }))}
+              active={activeStage}
+              inside={inside}
+              onPrev={onPrev}
+              onNext={onNext}
+              onJump={jumpTo}
+            />
             <header className="experience-header">
               <a className="wordmark" href="#story-content" aria-label="Fieldhouse home">
                 <span className="wordmark-symbol" aria-hidden="true">F</span>
                 <span>FIELDHOUSE</span>
               </a>
               <p className="chapter-status" aria-live="polite">
-                <span>{stage.number}</span>
+                <span>{SCENE_STAGES[activeStage].number}</span>
                 <span className="chapter-divider" aria-hidden="true">/</span>
-                {stage.label}
+                {SCENE_STAGES[activeStage].label}
               </p>
             </header>
             <div className={`landing-copy${activeStage > 1 ? " landing-copy-hidden" : ""}`}>
