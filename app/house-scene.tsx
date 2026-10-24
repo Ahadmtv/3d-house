@@ -1,7 +1,7 @@
 "use client";
 
 import { ContactShadows, Environment, Html, Lightformer, RoundedBox, useProgress } from "@react-three/drei";
-import { CHARCOAL, TRAVERTINE, W, UMBER } from "../src/lib/fh-tokens";
+import { TRAVERTINE, W } from "../src/lib/fh-tokens";
 import { gradientTexture, radialTexture, stripeTexture } from "../src/lib/fh-textures";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -23,7 +23,7 @@ const CAMERA_STOPS = [
   { progress: 0, position: [9, 7.4, 20] as const, target: [0, 2.2, 0] as const },
   { progress: 0.09, position: [3.1, 3.9, 11.5] as const, target: [0, 2, 6.9] as const },
   { progress: 0.17, position: [0, 2.55, 7.8] as const, target: [0, 2, -1] as const },
-  { progress: 0.28, position: [0, 2.45, 2.3] as const, target: [0, 2.25, -6.7] as const },
+  { progress: 0.28, position: [0, 2.6, 5.4] as const, target: [0, 2.6, -6.7] as const },
   { progress: 0.43, position: [0.35, 2.45, -0.7] as const, target: [-4.78, 2.35, -3.4] as const },
   { progress: 0.58, position: [-0.25, 2.45, -0.8] as const, target: [4.78, 2.3, -2.5] as const },
   { progress: 0.73, position: [0.1, 2.45, -0.1] as const, target: [4.78, 2.35, 0.5] as const },
@@ -72,7 +72,7 @@ const PANEL_LAYOUTS = {
   contact: { widths: [350, 300, 264], heights: [410, 350, 315] },
 } as const;
 
-const PANEL_DISTANCE_FACTOR = 2.5;
+const PANEL_DISTANCE_FACTOR = 4.1;
 const STAGE_PROGRESS = [0, 0.14, 0.28, 0.43, 0.58, 0.73, 0.88];
 
 type WallRefs = Record<"back" | "left" | "right", MutableRefObject<THREE.Mesh | null>>;
@@ -151,11 +151,11 @@ function CameraJourney({ progressRef, doorRef, reducedMotion, onState }: Pick<Ho
       fromPositionRef.current.copy(arrival.position);
       fromTargetRef.current.copy(arrival.look);
     } else {
-      fromPositionRef.current.set(...start.position);
-      fromTargetRef.current.set(...start.target);
+      fromPositionRef.current.set(start.position[0], start.position[1], start.position[2]);
+      fromTargetRef.current.set(start.target[0], start.target[1], start.target[2]);
     }
-    toPositionRef.current.set(...end.position);
-    toTargetRef.current.set(...end.target);
+    toPositionRef.current.set(end.position[0], end.position[1], end.position[2]);
+    toTargetRef.current.set(end.target[0], end.target[1], end.target[2]);
     cameraPositionRef.current.copy(fromPositionRef.current).lerp(toPositionRef.current, t);
     cameraTargetRef.current.copy(fromTargetRef.current).lerp(toTargetRef.current, t);
 
@@ -246,10 +246,14 @@ function HouseArchitecture({
     [0.5, "#3B4038"],
     [1, "#F2C47C"],
   ]), []);
+  const overhangShadow = useMemo(() => gradientTexture([
+    [0, "rgba(26,18,10,0.35)"],
+    [1, "rgba(26,18,10,0)"],
+  ]), []);
 
   return (
     <group>
-      <mesh position={[0, -0.265, 0]} receiveShadow>
+      <mesh position={[0, -0.265, 0]} receiveShadow visible={false}>
         <boxGeometry args={[HOUSE.width + HOUSE.wallThickness, 0.53, HOUSE.depth + HOUSE.wallThickness]} />
         <meshStandardMaterial color="#d5cbb8" roughness={0.9} />
       </mesh>
@@ -259,29 +263,37 @@ function HouseArchitecture({
       </mesh>
       <mesh ref={wallRefs.left} position={[-HOUSE.sideX, HOUSE.wallHeight / 2, 0]} receiveShadow>
         <boxGeometry args={[HOUSE.wallThickness, HOUSE.wallHeight, HOUSE.depth]} />
-        <meshStandardMaterial color="#B9AC92" map={sideTexture} roughness={0.92} />
+        <meshStandardMaterial color="#2E1F12" roughness={1} />
       </mesh>
       <mesh ref={wallRefs.right} position={[HOUSE.sideX, HOUSE.wallHeight / 2, 0]} receiveShadow>
         <boxGeometry args={[HOUSE.wallThickness, HOUSE.wallHeight, HOUSE.depth]} />
-        <meshStandardMaterial color="#B9AC92" map={sideTexture} roughness={0.92} />
+        <meshStandardMaterial color="#9C8B6E" roughness={0.95} />
+      </mesh>
+      <mesh position={[HOUSE.sideX + HOUSE.wallThickness / 2 + 0.002, HOUSE.wallHeight / 2, 0]} rotation={[0, Math.PI / 2, 0]}>
+        <planeGeometry args={[HOUSE.depth, HOUSE.wallHeight]} />
+        <meshStandardMaterial color="#FFFFFF" map={sideTexture} roughness={0.92} />
       </mesh>
       <FrontOpeningWall centerX={-3.8} facadeTexture={facadeTexture} />
       <FrontOpeningWall centerX={3.8} facadeTexture={facadeTexture} />
       {[-2, 2].map((centerX) => (
         <mesh key={centerX} position={[centerX, HOUSE.wallHeight / 2, HOUSE.frontZ]} receiveShadow>
           <boxGeometry args={[1.2, HOUSE.wallHeight, HOUSE.wallThickness]} />
-          <meshStandardMaterial color="#EFE8D8" map={facadeTexture} roughness={0.92} />
+          <meshStandardMaterial color="#FFFFFF" map={facadeTexture} roughness={0.92} />
         </mesh>
       ))}
       <mesh position={[0, 4.575, HOUSE.frontZ]} receiveShadow>
         <boxGeometry args={[2.8, 1.25, HOUSE.wallThickness]} />
-        <meshStandardMaterial color="#EFE8D8" map={facadeTexture} roughness={0.92} />
+        <meshStandardMaterial color="#FFFFFF" map={facadeTexture} roughness={0.92} />
+      </mesh>
+      <mesh position={[0, 4.575, HOUSE.frontZ + HOUSE.wallThickness / 2 + 0.006]}>
+        <planeGeometry args={[HOUSE.width, 1.25]} />
+        <meshBasicMaterial map={overhangShadow} transparent depthWrite={false} polygonOffset polygonOffsetFactor={-1} />
       </mesh>
       <mesh geometry={gable} position={[0, HOUSE.wallHeight, HOUSE.frontZ + HOUSE.wallThickness / 2]}>
-        <meshStandardMaterial color="#EFE8D8" map={facadeTexture} roughness={0.94} side={THREE.DoubleSide} />
+        <meshStandardMaterial color="#FFFFFF" map={facadeTexture} roughness={0.94} side={THREE.DoubleSide} />
       </mesh>
       <mesh geometry={gable} position={[0, HOUSE.wallHeight, HOUSE.backZ - HOUSE.wallThickness / 2]} rotation={[0, Math.PI, 0]}>
-        <meshStandardMaterial color="#EFE8D8" map={facadeTexture} roughness={0.94} side={THREE.DoubleSide} />
+        <meshStandardMaterial color="#FFFFFF" map={facadeTexture} roughness={0.94} side={THREE.DoubleSide} />
       </mesh>
       <mesh position={[-2.5, 6.525, 0]} rotation={[0, 0, 0.487]} castShadow receiveShadow>
         <boxGeometry args={[5.66, 0.3, 15.2]} />
@@ -302,6 +314,16 @@ function HouseArchitecture({
       <mesh position={[0, 7.72, 0]} castShadow>
         <boxGeometry args={[0.2, 0.24, 15.45]} />
         <meshStandardMaterial color="#232320" metalness={0.35} roughness={0.55} />
+      </mesh>
+      {[-1, 1].map((side) => (
+        <mesh key={`barge-${side}`} position={[side * 2.48, 6.55, 7.16]} rotation={[0, 0, -side * 0.487]} castShadow>
+          <boxGeometry args={[5.8, 0.09, 0.16]} />
+          <meshStandardMaterial color="#151513" roughness={0.6} />
+        </mesh>
+      ))}
+      <mesh position={[4.94, 3.9, 0]}>
+        <boxGeometry args={[0.08, 0.03, 14.8]} />
+        <meshStandardMaterial color="#0E0E0D" roughness={0.55} />
       </mesh>
       {[-1, 1].map((side) => (
         <mesh key={side} position={[side * 4.72, 0.14, 0]}>
@@ -367,7 +389,7 @@ function ExteriorModel({ inside }: { inside: boolean }) {
         </mesh>
         <mesh position={[0, 0.001, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
           <circleGeometry args={[1.5, 128]} />
-          <meshStandardMaterial color="#EAE0CB" map={plinthTexture} roughness={0.88} />
+          <meshStandardMaterial color="#FFFFFF" map={plinthTexture} roughness={0.88} />
         </mesh>
         <mesh position={[0, 0.001, 0]} rotation={[Math.PI / 2, 0, 0]}>
           <torusGeometry args={[1.5, 0.002, 6, 128]} />
@@ -508,16 +530,16 @@ function FrontOpeningWall({ centerX, facadeTexture }: { centerX: number; facadeT
       {[-1, 1].map((side) => (
         <mesh key={side} position={[centerX + side * 0.99, HOUSE.wallHeight / 2, HOUSE.frontZ]} receiveShadow>
           <boxGeometry args={[0.42, HOUSE.wallHeight, HOUSE.wallThickness]} />
-          <meshStandardMaterial color="#EFE8D8" map={facadeTexture} roughness={0.92} />
+          <meshStandardMaterial color="#FFFFFF" map={facadeTexture} roughness={0.92} />
         </mesh>
       ))}
       <mesh position={[centerX, 0.975, HOUSE.frontZ]} receiveShadow>
         <boxGeometry args={[1.3, 1.95, HOUSE.wallThickness]} />
-        <meshStandardMaterial color="#EFE8D8" map={facadeTexture} roughness={0.92} />
+        <meshStandardMaterial color="#FFFFFF" map={facadeTexture} roughness={0.92} />
       </mesh>
       <mesh position={[centerX, 4.325, HOUSE.frontZ]} receiveShadow>
         <boxGeometry args={[1.3, 1.75, HOUSE.wallThickness]} />
-        <meshStandardMaterial color="#EFE8D8" map={facadeTexture} roughness={0.92} />
+        <meshStandardMaterial color="#FFFFFF" map={facadeTexture} roughness={0.92} />
       </mesh>
     </group>
   );
@@ -623,7 +645,7 @@ function FlutedWall({ length, height, position, rotation }: {
 
   return (
     <group position={position} rotation={rotation}>
-      <mesh position={[0, 0, -0.005]} receiveShadow>
+      <mesh position={[0, 0, 0.005]} receiveShadow>
         <planeGeometry args={[length, height]} />
         <meshStandardMaterial color="#2E1F12" roughness={1} />
       </mesh>
@@ -735,10 +757,6 @@ function HouseDetails() {
         <meshStandardMaterial color="#3A2D22" roughness={1} />
       </mesh>
       <FlutedWall length={HOUSE.depth} height={HOUSE.wallHeight} position={[-HOUSE.sideX + 0.12, HOUSE.wallHeight / 2, 0]} rotation={[0, Math.PI / 2, 0]} />
-      <mesh position={[HOUSE.sideX - HOUSE.wallThickness / 2 - 0.004, HOUSE.wallHeight / 2, 0]} rotation={[0, -Math.PI / 2, 0]}>
-        <planeGeometry args={[HOUSE.depth, HOUSE.wallHeight]} />
-        <meshStandardMaterial color="#9C8B6E" roughness={0.95} />
-      </mesh>
       <mesh position={[0, HOUSE.wallHeight / 2, HOUSE.backZ + HOUSE.wallThickness / 2 + 0.006]}>
         <planeGeometry args={[HOUSE.width, HOUSE.wallHeight]} />
         <meshBasicMaterial map={backShade} transparent depthWrite={false} polygonOffset polygonOffsetFactor={-1} />

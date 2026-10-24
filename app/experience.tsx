@@ -19,6 +19,83 @@ export const SCENE_STAGES = [
   { progress: 0.88, label: "Come say hello", number: "07" },
 ] as const;
 
+const PANEL_PREVIEWS = [
+  {
+    number: "01",
+    label: "A warm welcome",
+    before: "Good work starts with",
+    after: "a feeling.",
+    body: "We make places, identities, and digital experiences with warmth, purpose, and a point of view.",
+    footer: "NEXT CHAPTER →",
+  },
+  {
+    number: "02",
+    label: "Our story",
+    before: "Small studio. Room for",
+    after: "big ideas.",
+    body: "Fieldhouse brings strategy, design, and craft together to make work with a lasting sense of place.",
+    footer: "EST. MMXVI",
+  },
+  {
+    number: "03",
+    label: "What we do",
+    before: "From first sketch to",
+    after: "final detail.",
+    list: ["Brand & identity", "Places & spaces", "Digital experiences"],
+    footer: "A GOOD PLACE TO BEGIN",
+  },
+  {
+    number: "04",
+    label: "A few good things",
+    before: "Made to",
+    after: "belong.",
+    body: "From quiet neighborhood landmarks to ambitious digital homes, we make the useful feel unforgettable.",
+    footer: "NEXT CHAPTER →",
+  },
+  {
+    number: "05",
+    label: "Come say hello",
+    before: "There’s room for what’s",
+    after: "next.",
+    body: "Tell us what you’re imagining. We’d love to hear about it.",
+    footer: "THANKS FOR STOPPING BY",
+  },
+] as const;
+
+function FallbackInterior({ activeStage }: { activeStage: number }) {
+  const panel = PANEL_PREVIEWS[Math.min(PANEL_PREVIEWS.length - 1, Math.max(0, activeStage - 2))];
+
+  return (
+    <div className="stage__fallback-interior" aria-label="Fieldhouse interior gallery">
+      <div className="fallback-interior__left" />
+      <div className="fallback-interior__back">
+        <div className="fallback-interior__slot" />
+        <article className="fallback-print">
+          <div className="fallback-print__mat">
+            <div className="fallback-print__paper">
+              <p className="panel-eyebrow">({panel.number}) {panel.label}</p>
+              <div className="panel-image" aria-hidden="true" />
+              <h2>{panel.before} <i>{panel.after}</i></h2>
+              {"body" in panel && <p>{panel.body}</p>}
+              {"list" in panel && (
+                <ul>
+                  {panel.list.map((item, index) => <li key={item}><span>{String(index + 1).padStart(2, "0")}</span>{item}</li>)}
+                </ul>
+              )}
+              <footer><span>F — {panel.number}</span><span>{panel.footer}</span></footer>
+            </div>
+          </div>
+        </article>
+        <div className="fallback-interior__nameplate">FIELDHOUSE</div>
+        <div className="fallback-interior__niche"><span /></div>
+        <div className="fallback-interior__bench" />
+      </div>
+      <div className="fallback-interior__right" />
+      <div className="fallback-interior__floor" />
+    </div>
+  );
+}
+
 export function HouseExperience() {
   const progressRef = useRef(0);
   const stageVariablesRef = useRef<Record<string, number>>({});
@@ -146,22 +223,24 @@ export function HouseExperience() {
                   />
                 )}
               </div>
-              {!webglAvailable && (
-                <div className="stage__fallback-model" aria-hidden="true">
-                  <div className="fallback__plinth">
-                    <div className="fallback__house">
-                      <div className="fallback__roof" />
-                      <div className="fallback__body">
-                        <span className="fallback__window" />
-                        <span className="fallback__door" />
-                        <span className="fallback__window" />
+              {!webglAvailable && (inside
+                ? <FallbackInterior activeStage={activeStage} />
+                : (
+                  <div className="stage__fallback-model" aria-hidden="true">
+                    <div className="fallback__plinth">
+                      <div className="fallback__house">
+                        <div className="fallback__roof" />
+                        <div className="fallback__body">
+                          <span className="fallback__window" />
+                          <span className="fallback__door" />
+                          <span className="fallback__window" />
+                        </div>
                       </div>
+                      <span className="fallback__tree fallback__tree--left" />
+                      <span className="fallback__tree fallback__tree--right" />
                     </div>
-                    <span className="fallback__tree fallback__tree--left" />
-                    <span className="fallback__tree fallback__tree--right" />
                   </div>
-                </div>
-              )}
+                ))}
               <div className="fx fx-grain" aria-hidden="true" />
               <div className="fx fx-vig-out" aria-hidden="true" />
               <div className="fx fx-vig-in" aria-hidden="true" />
